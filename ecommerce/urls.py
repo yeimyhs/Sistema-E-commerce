@@ -1,8 +1,13 @@
 from rest_framework.routers import SimpleRouter
 from ecommerce import views
-
+from django.conf import settings
+from django.conf.urls.static import static
 
 router = SimpleRouter()
+
+urlpatterns = [
+]
+
 
 router.register(r'administracion', views.AdministracionViewSet)
 router.register(r'cupon', views.CuponViewSet)
@@ -26,3 +31,7 @@ router.register(r'tblitemrelacionado', views.TblitemrelacionadoViewSet)
 router.register(r'tbldetallepedido', views.TbldetallepedidoViewSet)
 
 urlpatterns = router.urls
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
