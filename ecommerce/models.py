@@ -16,7 +16,8 @@ class Administracion(models.Model):
     igv = models.BigIntegerField()
     moneda = models.BigIntegerField(blank=True, null=True)
     datospasarela = models.TextField()
-
+    fechacreacion = models.DateTimeField(auto_now_add=True)
+    fechamodificacion = models.DateTimeField(auto_now=True)
     class Meta:
         db_table = 'Administracion'
 
@@ -27,8 +28,8 @@ class Cupon(models.Model):
     descripcion = models.TextField(blank=True, null=True)
     fechavigencia = models.DateTimeField(blank=True, null=True)
     estado = models.IntegerField()
-    fechacreacion = models.DateTimeField()
-    fechamodificacion = models.DateTimeField()
+    fechacreacion = models.DateTimeField(auto_now_add=True)
+    fechamodificacion = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'Cupon'
@@ -47,8 +48,8 @@ class Moneda(models.Model):
     idmoneda = models.BigAutoField(primary_key=True)
     nombre = models.CharField(max_length=128)
     estado = models.IntegerField()
-    fechacreacion = models.DateTimeField()
-    fechamodificacion = models.DateTimeField()
+    fechacreacion = models.DateTimeField(auto_now_add=True)
+    fechamodificacion = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'Moneda'
@@ -58,8 +59,8 @@ class Promocion(models.Model):
     idpromocion = models.BigAutoField(primary_key=True)
     imagenpromocion = models.TextField(db_column='imagenPromocion')  # Field name made lowercase. This field type is a guess.
     estado = models.IntegerField()
-    fechacreacion = models.DateTimeField()
-    fechamodificacion = models.DateTimeField()
+    fechacreacion = models.DateTimeField(auto_now_add=True)
+    fechamodificacion = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'Promocion'
@@ -93,8 +94,8 @@ class Tblitem(models.Model):
         validators=[MinValueValidator(0)]
     )  # This field type is a guess.
     estado = models.IntegerField()
-    fechacreacion = models.DateTimeField()
-    fechamodificacion = models.DateTimeField()
+    fechacreacion = models.DateTimeField(auto_now_add=True)
+    fechamodificacion = models.DateTimeField(auto_now=True)
     idmarca = models.ForeignKey(Marca, models.DO_NOTHING, db_column='id', blank=True, null=True)
 
     class Meta:
@@ -106,8 +107,8 @@ class Tblnoticia(models.Model):
     idnoticia = models.BigAutoField(db_column='idNoticia', primary_key=True)  # Field name made lowercase.
     imagennoticia = models.TextField(db_column='imagenNoticia')  # Field name made lowercase. This field type is a guess.
     descripcion = models.TextField()
-    fechacreacion = models.DateTimeField()
-    fechamodificacion = models.DateTimeField()
+    fechacreacion = models.DateTimeField(auto_now_add=True)
+    fechamodificacion = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'TblNoticia'
@@ -124,8 +125,8 @@ class Tblpedido(models.Model):
     idcupon = models.ForeignKey(Cupon, models.DO_NOTHING, db_column='idCupon', blank=True, null=True)  # Field name made lowercase.
     idmoneda = models.ForeignKey(Moneda, models.DO_NOTHING, db_column='idmoneda')
     estado = models.IntegerField()
-    fechacreacion = models.DateTimeField()
-    fechamodificacion = models.DateTimeField()
+    fechacreacion = models.DateTimeField(auto_now_add=True)
+    fechamodificacion = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'TblPedido'
@@ -136,8 +137,8 @@ class Tblslider(models.Model):
     imagen = models.BigIntegerField()
     descripcion = models.TextField(blank=True, null=True)
     estado = models.IntegerField()
-    fechacreacion = models.DateTimeField()
-    fechamodificacion = models.DateTimeField()
+    fechacreacion = models.DateTimeField(auto_now_add=True)
+    fechamodificacion = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'TblSlider'
@@ -152,8 +153,8 @@ class Tblusuario(models.Model):
     direccion = models.CharField(max_length=128, blank=True, null=True)
     contrasenia = models.CharField(max_length=128)
     estado = models.IntegerField()
-    fechacreacion = models.DateTimeField()
-    fechamodificacion = models.DateTimeField()
+    fechacreacion = models.DateTimeField(auto_now_add=True)
+    fechamodificacion = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'TblUsuario'
@@ -161,10 +162,10 @@ class Tblusuario(models.Model):
 
 class Tipocambio(models.Model):
     tipocambio = models.BigIntegerField(blank=True, null=True)
-    fecha = models.BigIntegerField(blank=True, null=True)
     idcambio = models.BigAutoField(primary_key=True)
     idmoneda = models.ForeignKey(Moneda, models.DO_NOTHING, db_column='idmoneda', blank=True, null=True)
-
+    fechacreacion = models.DateTimeField(auto_now_add=True)
+    fechamodificacion = models.DateTimeField(auto_now=True)
     class Meta:
         db_table = 'TipoCambio'
 
@@ -174,12 +175,11 @@ class Valoracion(models.Model):
     comentario = models.TextField()
     idvaloracion = models.BigAutoField(primary_key=True)
     estado = models.BigIntegerField()
-    datecreation = models.DateTimeField()
     telefono = models.BigIntegerField(blank=True, null=True)
-    fechamodificacion = models.TimeField()
     idproduct = models.ForeignKey(Tblitem, models.DO_NOTHING, db_column='idproduct', blank=True, null=True)
     iduser = models.ForeignKey(Tblusuario, models.DO_NOTHING, db_column='idUser', blank=True, null=True)  # Field name made lowercase.
-
+    fechacreacion = models.DateTimeField(auto_now_add=True)
+    fechamodificacion = models.DateTimeField(auto_now=True)
     class Meta:
         db_table = 'Valoracion'
 
