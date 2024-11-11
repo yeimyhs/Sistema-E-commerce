@@ -3,9 +3,17 @@ from ecommerce import views
 from django.conf import settings
 from django.conf.urls.static import static
 
+from django.urls import path , re_path, reverse
+from django.urls import path,include, re_path
+from knox import views as knox_views
+
 router = SimpleRouter()
 
 urlpatterns = [
+    path('login/', views.LoginView.as_view(), name='knox_login'),
+    path('logout/', knox_views.LogoutView.as_view(), name='knox_logout'),
+    path('logoutall/', knox_views.LogoutAllView.as_view(), name='knox_logoutall'),
+    path('register/', views.RegisterAPI.as_view(), name='register'),
 ]
 router.register(r'administracion', views.AdministracionViewSet)
 router.register(r'cupon', views.CuponViewSet)
@@ -28,7 +36,7 @@ router.register(r'tblitempropiedad', views.TblitempropiedadViewSet)
 router.register(r'tblitemrelacionado', views.TblitemrelacionadoViewSet)
 router.register(r'tbldetallepedido', views.TbldetallepedidoViewSet)
 
-urlpatterns = router.urls
+urlpatterns = urlpatterns + router.urls
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

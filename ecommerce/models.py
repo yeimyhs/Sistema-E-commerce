@@ -8,6 +8,11 @@
 from django.db import models
 from django.core.validators import MinValueValidator
 
+from django.core.exceptions import ValidationError
+from django.conf import settings
+
+from django.contrib.auth.models import AbstractUser, BaseUserManager
+
 class Administracion(models.Model):
     id = models.BigAutoField(primary_key=True)
     nombreempresa = models.BigIntegerField()
@@ -67,7 +72,7 @@ class Promocion(models.Model):
 
 
 class Tblcarrito(models.Model):
-    idusuario = models.OneToOneField('Tblusuario', models.DO_NOTHING, db_column='idUsuario', primary_key=True)  # Field name made lowercase.
+    idusuario = models.OneToOneField(settings.AUTH_USER_MODEL, models.DO_NOTHING, db_column='idUsuario', primary_key=True)  # Field name made lowercase.
     preciototal = models.TextField(blank=True, null=True)  # This field type is a guess.
 
     class Meta:
@@ -116,7 +121,7 @@ class Tblnoticia(models.Model):
 
 class Tblpedido(models.Model):
     idpedido = models.BigAutoField(primary_key=True)
-    idcliente = models.ForeignKey('Tblusuario', models.DO_NOTHING, db_column='idCliente')  # Field name made lowercase.
+    idcliente = models.ForeignKey(settings.AUTH_USER_MODEL, models.DO_NOTHING, db_column='idCliente')  # Field name made lowercase.
     subtotal = models.TextField()  # This field type is a guess.
     direcciondestino = models.TextField()
     total = models.TextField()  # This field type is a guess.
@@ -143,21 +148,61 @@ class Tblslider(models.Model):
     class Meta:
         db_table = 'TblSlider'
 
+class CustomUserManager(BaseUserManager):
+    def create_user(self, nombreusuario, password=None, **extra_fields):
+        # Verifica que el campo nombreusuario esté presente
+        if not nombreusuario:
+            raise ValueError('El campo nombreusuario debe ser declarado')
+        
+        # Crea el usuario con el nombre de usuario y otros campos extra
+        user = self.model(nombreusuario=nombreusuario, **extra_fields)
+        
+        # Establece la contraseña
+        if password:
+            user.set_password(password)
+        
+        # Guarda el usuario en la base de datos
+        user.save(using=self._db)
+        return user
 
-class Tblusuario(models.Model):
-    idusuario = models.BigAutoField(db_column='idUsuario', primary_key=True)  # Field name made lowercase.
+    def create_superuser(self, nombreusuario, password=None, **extra_fields):
+        # Establece is_staff y is_superuser para el superusuario
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+
+        # Llama a create_user para crear el superusuario
+        return self.create_user(nombreusuario, password, **extra_fields)
+
+class CustomUser(AbstractUser):
+    # Eliminar el campo `username` heredado
+    username = None
+    
+    # Campos adicionales
     nombre = models.CharField(max_length=128, blank=True, null=True)
-    apellido = models.CharField(max_length=128, blank=True, null=True)
-    nombreusuario = models.CharField(max_length=128)
-    correo = models.CharField(max_length=128)
+    apellidos = models.CharField(max_length=128, blank=True, null=True)
+    nombreusuario = models.CharField(max_length=128, unique=True)  # Usamos nombreusuario para autenticación
     direccion = models.CharField(max_length=128, blank=True, null=True)
-    contrasenia = models.CharField(max_length=128)
     estado = models.IntegerField()
     fechacreacion = models.DateTimeField(auto_now_add=True)
     fechamodificacion = models.DateTimeField(auto_now=True)
+    
+    email_verified_at = models.DateTimeField(blank=True, null=True)
+    remember_token = models.CharField(max_length=100, blank=True, null=True)
 
-    class Meta:
-        db_table = 'TblUsuario'
+    # Especificar que el campo para autenticar es `nombreusuario`
+    USERNAME_FIELD = 'nombreusuario'
+    
+    # Campos requeridos adicionales (no necesitas username ya que lo has reemplazado con nombreusuario)
+    REQUIRED_FIELDS = ['email']  # En Django, `email` es un campo por defecto si lo estás usando como required
+
+    # Manager personalizado
+    objects = CustomUserManager()
+    
+    def __str__(self):
+        return self.nombreusuario
+    def get_full_name(self):
+        return f"{self.nombre} {self.apellidos or ''}".strip()
+
 
 
 class Tipocambio(models.Model):
@@ -177,7 +222,7 @@ class Valoracion(models.Model):
     estado = models.BigIntegerField()
     telefono = models.BigIntegerField(blank=True, null=True)
     idproduct = models.ForeignKey(Tblitem, models.DO_NOTHING, db_column='idproduct', blank=True, null=True)
-    iduser = models.ForeignKey(Tblusuario, models.DO_NOTHING, db_column='idUser', blank=True, null=True)  # Field name made lowercase.
+    iduser = models.ForeignKey(settings.AUTH_USER_MODEL ,models.DO_NOTHING, db_column='idUser', blank=True, null=True)  # Field name made lowercase.
     fechacreacion = models.DateTimeField(auto_now_add=True)
     fechamodificacion = models.DateTimeField(auto_now=True)
     class Meta:

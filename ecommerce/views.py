@@ -1,6 +1,64 @@
 from rest_framework.viewsets import ModelViewSet
-from ecommerce.serializers import AdministracionSerializer, CuponSerializer, MarcaSerializer, MonedaSerializer, PromocionSerializer, TblcarritoSerializer, TblitemSerializer, TblnoticiaSerializer, TblpedidoSerializer, TblsliderSerializer, TblusuarioSerializer, TipocambioSerializer, ValoracionSerializer, TbldetallecarritoSerializer, TblimagenitemSerializer, TblitemclaseSerializer, TblitemclasepropiedadSerializer, TblitempropiedadSerializer, TblitemrelacionadoSerializer, TbldetallepedidoSerializer
-from ecommerce.models import Administracion, Cupon, Marca, Moneda, Promocion, Tblcarrito, Tblitem, Tblnoticia, Tblpedido, Tblslider, Tblusuario, Tipocambio, Valoracion, Tbldetallecarrito, Tblimagenitem, Tblitemclase, Tblitemclasepropiedad, Tblitempropiedad, Tblitemrelacionado, Tbldetallepedido
+from ecommerce.serializers import AdministracionSerializer, CuponSerializer, MarcaSerializer, MonedaSerializer, PromocionSerializer, TblcarritoSerializer, TblitemSerializer, TblnoticiaSerializer, TblpedidoSerializer, TblsliderSerializer, TipocambioSerializer, ValoracionSerializer, TbldetallecarritoSerializer, TblimagenitemSerializer, TblitemclaseSerializer, TblitemclasepropiedadSerializer, TblitempropiedadSerializer, TblitemrelacionadoSerializer, TbldetallepedidoSerializer
+from ecommerce.models import Administracion, Cupon, Marca, Moneda, Promocion, Tblcarrito, Tblitem, Tblnoticia, Tblpedido, Tblslider, Tipocambio, Valoracion, Tbldetallecarrito, Tblimagenitem, Tblitemclase, Tblitemclasepropiedad, Tblitempropiedad, Tblitemrelacionado, Tbldetallepedido
+
+from django.contrib.auth import login
+from rest_framework import permissions
+from rest_framework.authtoken.serializers import AuthTokenSerializer
+from knox.views import LoginView as KnoxLoginView
+from rest_framework import generics
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+
+from rest_framework import filters
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.response import Response
+from knox.models import AuthToken
+
+from .models import *
+from .serializers import *
+
+class LoginView(KnoxLoginView):
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request, format=None):
+        serializer = CustomAuthTokenSerializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationError:
+            return Response({"error": "El nombreusuario y el password son obligatorios"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = serializer.validated_data.get('nombreusuario')
+        if user is None:
+            return Response({"error": "Credenciales Invalidas"}, status=status.HTTP_400_BAD_REQUEST)
+        user = CustomUser.objects.filter(nombreusuario=user).first()
+        if not user.estado:
+            return Response({"error": "Cuenta deshabilitada"}, status=status.HTTP_403_FORBIDDEN)
+        
+        login(request, user)
+        return super(LoginView, self).post(request, format=None)
+
+    def throttled(self, request, wait):
+        return Response(
+            {"error": "Too many failed login attempts, please try again later"},
+            status=status.HTTP_429_TOO_MANY_REQUESTS
+        )
+class RegisterAPI(generics.GenericAPIView):
+    serializer_class = RegisterSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        return Response({
+            "user": serializer.data,
+            "token": AuthToken.objects.create(user)[1]
+        })
 
 
 class AdministracionViewSet(ModelViewSet):
@@ -54,8 +112,8 @@ class TblsliderViewSet(ModelViewSet):
 
 
 class TblusuarioViewSet(ModelViewSet):
-    queryset = Tblusuario.objects.order_by('pk')
-    serializer_class = TblusuarioSerializer
+    queryset = CustomUser.objects.order_by('pk')
+    serializer_class = CustomUserSerializer
 
 
 class TipocambioViewSet(ModelViewSet):

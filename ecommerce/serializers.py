@@ -1,5 +1,27 @@
 from rest_framework.serializers import ModelSerializer
-from ecommerce.models import Administracion, Cupon, Marca, Moneda, Promocion, Tblcarrito, Tblitem, Tblnoticia, Tblpedido, Tblslider, Tblusuario, Tipocambio, Valoracion, Tbldetallecarrito, Tblimagenitem, Tblitemclase, Tblitemclasepropiedad, Tblitempropiedad, Tblitemrelacionado, Tbldetallepedido
+from ecommerce.models import Administracion, Cupon, Marca, Moneda, Promocion, Tblcarrito, Tblitem, Tblnoticia, Tblpedido, Tblslider, Tipocambio, Valoracion, Tbldetallecarrito, Tblimagenitem, Tblitemclase, Tblitemclasepropiedad, Tblitempropiedad, Tblitemrelacionado, Tbldetallepedido
+
+from .models import *
+from .serializers import *
+
+from rest_framework import serializers
+
+from django.contrib.auth import get_user_model
+from rest_framework.serializers import ModelSerializer
+
+from django.contrib.auth import authenticate
+
+class CustomAuthTokenSerializer(serializers.Serializer):
+    nombreusuario = serializers.CharField()
+    password = serializers.CharField()
+
+    def validate(self, attrs):
+        # Usar el campo 'nombreusuario' en lugar de 'username'
+        user = authenticate(nombreusuario=attrs['nombreusuario'], password=attrs['password'])
+        if user is None:
+            raise serializers.ValidationError("Credenciales inválidas")
+        attrs['user'] = user
+        return attrs
 
 
 class AdministracionSerializer(ModelSerializer):
@@ -72,12 +94,45 @@ class TblsliderSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class TblusuarioSerializer(ModelSerializer):
-
+class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Tblusuario
-        fields = '__all__'
+        model = CustomUser
+        fields = [
+            'id',
+            'email',
+            'nombre',
+            'apellidos',
+            'nombreusuario',  # Añadir el campo de nombreusuario como USERNAME_FIELD
+            'direccion',
+            'estado',
+            'fechacreacion',  # Campo de creación automática
+            'fechamodificacion',  # Campo de modificación automática
+            'email_verified_at',
+            'remember_token',
+            'is_staff',
+        ]
 
+class RegisterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = [
+            'email', 'password', 'nombre', 'apellidos', 
+            'nombreusuario', 'direccion', 'estado', 'is_staff',
+        ]
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def create(self, validated_data):
+        user = CustomUser.objects.create_user(
+            email=validated_data['email'],
+            password=validated_data['password'],
+            nombre=validated_data.get('nombre'),
+            apellidos=validated_data.get('apellidos'),
+            nombreusuario=validated_data['nombreusuario'],  # Ahora es el campo de USERNAME_FIELD
+            direccion=validated_data.get('direccion'),
+            estado=validated_data.get('estado'),
+            is_staff=validated_data.get('is_staff')
+        )
+        return user
 
 class TipocambioSerializer(ModelSerializer):
 
