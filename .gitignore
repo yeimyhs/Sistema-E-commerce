@@ -1,0 +1,28 @@
+# Ignorar archivos de entorno de Python
+*.pyc
+/__pycache__/
+
+# Ignorar archivos de migraciones de Django
+
+ecommerce/migrations/__pycache__/
+
+# Ignorar otros archivos innecesarios
+LlantasEcommerce/__pycache__/
+ecommerce/__pycache__/
+
+# Ignorar entornos virtuales
+nombre_del_proyecto/
+VirtEnvLlantas/
+
+# Ignorar archivos de configuración de VSCode
+.vscode/
+
+# Ignorar archivos de bases de datos locales de Django
+db.sqlite3
+
+# Ignorar archivos de configuración del sistema
+*.log
+*.env
+
+# Ignorar archivos de dependencias de Node.js (si usas Node)
+node_modules/
