@@ -66,11 +66,6 @@ class TblcarritoSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class TblitemSerializer(ModelSerializer):
-
-    class Meta:
-        model = Tblitem
-        fields = '__all__'
 
 
 class TblnoticiaSerializer(ModelSerializer):
@@ -162,25 +157,37 @@ class TblimagenitemSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class TblitemclaseSerializer(ModelSerializer):
+class TblitempropiedadSerializer(ModelSerializer):
 
     class Meta:
-        model = Tblitemclase
+        model = Tblitempropiedad
         fields = '__all__'
 
 
+class TblitemclaseSerializer(ModelSerializer):
+    class Meta:
+        model = Tblitemclase
+        fields = '__all__'
+        
+class PropiedadesxClasesSerializer(ModelSerializer):
+    propiedades = serializers.SerializerMethodField()
+    class Meta:
+        model = Tblitemclase
+        fields = '__all__'
+        
+    def get_propiedades(self, obj):
+        propiedades = Tblitempropiedad.objects.filter(idclase=obj)
+        return TblitempropiedadSerializer(propiedades, many=True).data
+
 class TblitemclasepropiedadSerializer(ModelSerializer):
+    clase = TblitemclaseSerializer(source='idclase', read_only=True)
+    propiedad = TblitempropiedadSerializer(source='idpropiedad', read_only=True)
 
     class Meta:
         model = Tblitemclasepropiedad
         fields = '__all__'
 
 
-class TblitempropiedadSerializer(ModelSerializer):
-
-    class Meta:
-        model = Tblitempropiedad
-        fields = '__all__'
 
 
 class TblitemrelacionadoSerializer(ModelSerializer):
@@ -195,3 +202,29 @@ class TbldetallepedidoSerializer(ModelSerializer):
     class Meta:
         model = Tbldetallepedido
         fields = '__all__'
+
+class NombresTblitemClasePropiedadSerializer(serializers.ModelSerializer):
+    clase_nombre = serializers.CharField(source='idclase.nombre', read_only=True)
+    propiedad_nombre = serializers.CharField(source='idpropiedad.nombre', read_only=True)
+
+    class Meta:
+        model = Tblitemclasepropiedad
+        fields = ['clase_nombre', 'propiedad_nombre'] 
+        
+class TblitemSerializer(ModelSerializer):
+    clases_propiedades = serializers.SerializerMethodField()
+    imagen_marca =  MarcaSerializer(source='idmarca', read_only=True)
+    imagenes_producto =  serializers.SerializerMethodField()
+    class Meta:
+        model = Tblitem
+        fields = ['idproduct', 'codigosku', 'stock', 'descripcion', 'destacado', 'agotado', 
+                  'nuevoproducto', 'preciorebajado', 'precionormal', 'estado', 
+                  'fechacreacion', 'fechamodificacion', 'imagen_marca', 'clases_propiedades', 'imagenes_producto']
+    def get_clases_propiedades(self, obj):
+        clases_propiedades = Tblitemclasepropiedad.objects.filter(idproduct=obj)
+        return NombresTblitemClasePropiedadSerializer(clases_propiedades, many=True).data
+
+        
+    def get_imagenes_producto(self, obj):
+        imagenes_producto = Tblimagenitem.objects.filter(idproduct=obj)
+        return TblimagenitemSerializer(imagenes_producto, many=True).data   
