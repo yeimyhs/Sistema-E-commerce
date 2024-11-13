@@ -13,18 +13,6 @@ from django.conf import settings
 
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 
-class Administracion(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    nombreempresa = models.BigIntegerField()
-    ruc = models.BigIntegerField()
-    telefono = models.BigIntegerField()
-    igv = models.BigIntegerField()
-    moneda = models.BigIntegerField(blank=True, null=True)
-    datospasarela = models.TextField()
-    fechacreacion = models.DateTimeField(auto_now_add=True)
-    fechamodificacion = models.DateTimeField(auto_now=True)
-    class Meta:
-        db_table = 'Administracion'
 
 
 class Cupon(models.Model):
@@ -297,3 +285,17 @@ class Tbldetallepedido(models.Model):
     class Meta:
         db_table = 'tbldetallepedido'
         unique_together = (('idpedido', 'idproduct'),)
+
+class Administracion(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    nombreempresa = models.BigIntegerField()
+    ruc = models.BigIntegerField()
+    telefono = models.BigIntegerField()
+    igv = models.BigIntegerField()
+    idmoneda = models.ForeignKey(Moneda, models.DO_NOTHING, db_column='idmoneda', blank=True, null=True)
+    
+    datospasarela = models.TextField()
+    fechacreacion = models.DateTimeField(auto_now_add=True)
+    fechamodificacion = models.DateTimeField(auto_now=True)
+    class Meta:
+        db_table = 'Administracion'

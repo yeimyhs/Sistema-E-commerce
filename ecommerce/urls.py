@@ -7,6 +7,8 @@ from django.urls import path , re_path, reverse
 from django.urls import path,include, re_path
 from knox import views as knox_views
 
+from django.conf import settings
+from django.conf.urls.static import static
 router = SimpleRouter()
 
 urlpatterns = [

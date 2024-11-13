@@ -151,6 +151,9 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),  # para archivos estáticos adicionales
 ]
 
+MEDIA_URL = '/media/'  # URL pública para acceder a los archivos
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')  # Ruta donde se guardan los archivos físicamente
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
