@@ -120,8 +120,8 @@ class AdministracionViewSet(ModelViewSet):
     queryset = Administracion.objects.order_by('pk')
     serializer_class = AdministracionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
-    search_fields = ['nombreempresa', 'ruc', 'telefono', 'moneda__nombre']
-    filterset_fields = ['nombreempresa', 'ruc', 'telefono', 'igv', 'moneda_id', 'moneda__nombre', 'fechacreacion', 'fechamodificacion']
+    search_fields = ['nombreempresa', 'ruc', 'telefono', 'idmoneda__nombre']
+    filterset_fields = ['nombreempresa', 'ruc', 'telefono', 'igv', 'idmoneda_id', 'idmoneda__nombre', 'fechacreacion', 'fechamodificacion']
 
 
 
@@ -232,7 +232,7 @@ class ValoracionViewSet(ModelViewSet):
     serializer_class = ValoracionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['comentario', 'estrellas']
-    filterset_fields = ['idvaloracion', 'estrellas', 'comentario', 'estado', 'telefono', 'idproduct_id', 'idmoneda_id', 'fechacreacion', 'fechamodificacion']
+    filterset_fields = ['idvaloracion', 'estrellas', 'comentario', 'estado', 'telefono', 'idproduct_id', 'fechacreacion', 'fechamodificacion']
 
     
 
@@ -242,7 +242,7 @@ class TbldetallecarritoViewSet(ModelViewSet):
     serializer_class = TbldetallecarritoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['idproduct__descripcion', 'cantidad']
-    filterset_fields = ['idpedido_id', 'idproduct_id', 'cantidad', 'preciototal', 'preciunitario']
+    filterset_fields = [ 'idproduct_id', 'cantidad', 'isuser_id', 'idcupon_id']
 
 
 
