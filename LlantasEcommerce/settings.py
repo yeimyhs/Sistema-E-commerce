@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-fy!^t*0#ay+^3m-07_$&qcblx9uapsj&^a^eog0a#sw51(gx44
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['190.237.97.231','servicesgrupoiap.ddns.net','ecommercellantas.onrender.com', '127.0.0.1:8000', '127.0.0.1']
+ALLOWED_HOSTS = ["*",'190.237.97.231','servicesgrupoiap.ddns.net','ecommercellantas.onrender.com', '127.0.0.1:8000', '127.0.0.1']
 
 
 # Application definition
@@ -55,7 +55,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://190.237.97.231:3000",
     "http://servicesgrupoiap.ddns.net:3000",
     "http://190.237.97.231:81",
-    "http://servicesgrupoiap.ddns.net:81"
+    "http://servicesgrupoiap.ddns.net:81",
+    "*"
 ]
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ('knox.auth.TokenAuthentication',),
