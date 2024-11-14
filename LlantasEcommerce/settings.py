@@ -43,10 +43,20 @@ INSTALLED_APPS = [
     'drf_yasg',
     'ecommerce',
     'django_filters',
+    'corsheaders',
+    
     
 ]
+CORS_ALLOW_ALL_ORIGINS = True
 AUTH_USER_MODEL = 'ecommerce.CustomUser'
-
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://190.237.97.231:3000",
+    "http://servicesgrupoiap.ddns.net:3000",
+    "http://190.237.97.231:81",
+    "http://servicesgrupoiap.ddns.net:81"
+]
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ('knox.auth.TokenAuthentication',),
 }
@@ -54,6 +64,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',# render
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
