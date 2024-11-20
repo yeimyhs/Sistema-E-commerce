@@ -56,7 +56,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://servicesgrupoiap.ddns.net:3000",
     "http://190.237.97.231:81",
     "http://servicesgrupoiap.ddns.net:81",
-    "*"
+    
 ]
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ('knox.auth.TokenAuthentication',),

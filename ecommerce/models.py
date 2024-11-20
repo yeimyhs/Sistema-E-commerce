@@ -255,7 +255,7 @@ class Tblitempropiedad(models.Model):
         
 class Tblitemclasepropiedad(models.Model):
     id = models.BigAutoField(db_column='Id', primary_key=True)  # Field name made lowercase.
-    idproduct = models.ForeignKey(Tblitem, models.DO_NOTHING, db_column='idproduct')
+    idproduct = models.ForeignKey(Tblitem, models.DO_NOTHING, db_column='idproduct', related_name='clases_propiedades')
     idpropiedad = models.ForeignKey(Tblitempropiedad, models.DO_NOTHING, db_column='idpropiedad', blank=True, null=True)
     idclase = models.ForeignKey(Tblitemclase, models.DO_NOTHING, db_column='idclase', blank=True, null=True)
 

@@ -25,7 +25,7 @@ from .serializers import *
 
 from rest_framework.decorators import action
 from rest_framework import filters
-from .filters import TblitemFilter
+#from .filters import TblitemFilter
 
 from django.db.models import Q
 from rest_framework import viewsets
@@ -167,17 +167,29 @@ class TblcarritoViewSet(ModelViewSet):
     search_fields = ['idusuario__nombreusuario', 'preciototal']
     filterset_fields = ['idusuario_id', 'preciototal']
 
-
-
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import viewsets
+from .models import Tblitem
+from .serializers import TblitemSerializer
+from .filters import TblitemclasepropiedadFilter
+from .filters import TblitemFilter
 class TblitemViewSet(ModelViewSet):
     queryset = Tblitem.objects.prefetch_related(
-        'tblitemclasepropiedad_set',  # Prefetch Tblitemclasepropiedad para evitar múltiples consultas
-        'tblitemclasepropiedad_set__idclase',  # Prefetch las clases
-        'tblitemclasepropiedad_set__idpropiedad'  # Prefetch las propiedades
+        'clases_propiedades',
+        'clases_propiedades__idclase',
+        'clases_propiedades__idpropiedad' # Prefetch para las propiedades
     ).all()
     serializer_class = TblitemSerializer
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     filterset_class = TblitemFilter
+    
+    # Agrega campos relacionados para la búsqueda
+    search_fields = [
+        'codigosku',  # Campo directo de Tblitem
+        'descripcion',  # Campo directo de Tblitem
+        'clases_propiedades__idclase__nombre',  # Nombre de la clase relacionada
+        'clases_propiedades__idpropiedad__nombre'  # Nombre de la propiedad relacionada
+    ]
 
 
 

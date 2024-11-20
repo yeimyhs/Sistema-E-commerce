@@ -18,7 +18,7 @@ VirtEnvLlantas/
 .vscode/
 
 # Ignorar archivos de bases de datos locales de Django
-db.sqlite3
+#db.sqlite3
 
 # Ignorar archivos de configuración del sistema
 *.log
