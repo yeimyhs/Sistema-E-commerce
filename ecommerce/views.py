@@ -31,6 +31,10 @@ from django.db.models import Q
 from rest_framework import viewsets
 from rest_framework.response import Response
 
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
+
 class ClasesYPropiedadesView(APIView):
     def get(self, request):
         # Inicializa una lista para almacenar las clases y sus propiedades
@@ -53,26 +57,45 @@ class ClasesYPropiedadesView(APIView):
         return Response(clases_propiedades)
     
 class BusquedaDinamicaViewSet(viewsets.ViewSet):
+    serializer_class = TblitemSerializer
+    @swagger_auto_schema(
+        operation_description="Busca productos filtrados por combinaciones de clase y propiedad. " 
+                              "Se pueden agregar múltiples combinaciones separadas por '&'.",
+        manual_parameters=[
+            openapi.Parameter(
+                name='clase',
+                in_=openapi.IN_QUERY,
+                description="Combinaciones de clase y propiedad para filtrar los productos. "
+                            "Ejemplo: ?clase=1,propiedad=1&clase=1,propiedad=2",
+                type=openapi.TYPE_STRING,
+                required=True,
+                examples={
+                    "query": "1,propiedad=1"
+                }
+            ),
+        ],
+        responses={200: TblitemSerializer(many=True)},
+    )
+    
     def list(self, request):
-        # Construimos la consulta Q de manera dinámica según las clases y propiedades en los parámetros de la URL
-        query = Q()
-        
-        # Iterar sobre todos los parámetros de la solicitud
-        for key, value in request.query_params.items():
-            # Esperamos que el nombre del parámetro esté en el formato clase_propiedad
-            if "_" in key:
-                clase, propiedad = key.split("_", 1)
-                query &= Q(
-                    clases_propiedades__idclase__nombre=clase,
-                    clases_propiedades__idpropiedad__nombre=value
-                )
+        query = Q()  
+        for filtro in request.query_params.getlist("clase"):
+            # Dividimos el valor en clase y propiedad
+            if "propiedad=" in filtro:
+                try:
+                    clase, propiedad = filtro.split(",propiedad=")
+                    # Agregamos la combinación a la consulta con OR
+                    query |= Q(
+                        clases_propiedades__idclase=clase,
+                        clases_propiedades__idpropiedad=propiedad
+                    )
+                except ValueError:
+                    continue  # Si no tiene el formato esperado, lo ignoramos
 
-        # Filtra los productos basados en la consulta generada
         items = Tblitem.objects.filter(query).distinct()
-
-        # Serializa y retorna la respuesta
         serializer = TblitemSerializer(items, many=True)
         return Response(serializer.data)
+
 
 
 class LoginView(KnoxLoginView):
