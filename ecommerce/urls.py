@@ -16,6 +16,7 @@ urlpatterns = [
     path('logout/', knox_views.LogoutView.as_view(), name='knox_logout'),
     path('logoutall/', knox_views.LogoutAllView.as_view(), name='knox_logoutall'),
     path('register/', views.RegisterAPI.as_view(), name='register'),
+    path('userinfo/', views.UserInfoView.as_view(), name='userinfo'),
     
     path('clases_propiedades/', views.ClasesYPropiedadesView.as_view(), name='clases_propiedades'),
     path('filtrobusqueda/', views.BusquedaDinamicaViewSet.as_view({'get': 'list'})),

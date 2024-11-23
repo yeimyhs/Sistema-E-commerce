@@ -116,13 +116,31 @@ class LoginView(KnoxLoginView):
             return Response({"error": "Cuenta deshabilitada"}, status=status.HTTP_403_FORBIDDEN)
         
         login(request, user)
-        return super(LoginView, self).post(request, format=None)
+        response = super(LoginView, self).post(request, format=None)
+        
+        # Serializar la información completa del usuario
+        user_serializer = CustomUserSerializer(user)
+        
+        # Combinar el token con los datos serializados del usuario
+        response.data["user"] = user_serializer.data
+        
+        return response
 
     def throttled(self, request, wait):
         return Response(
             {"error": "Too many failed login attempts, please try again later"},
             status=status.HTTP_429_TOO_MANY_REQUESTS
         )
+
+class UserInfoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        serializer = CustomUserSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class RegisterAPI(generics.GenericAPIView):
     serializer_class = RegisterSerializer
 
