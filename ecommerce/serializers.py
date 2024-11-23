@@ -99,6 +99,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
             'apellidos',
             'nombreusuario',  # Añadir el campo de nombreusuario como USERNAME_FIELD
             'direccion',
+            'departamento','provincia','distrito',
             'estado',
             'fechacreacion',  # Campo de creación automática
             'fechamodificacion',  # Campo de modificación automática
@@ -113,7 +114,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = [
             'email', 'password', 'nombre', 'apellidos', 
-            'nombreusuario','telefono', 'direccion', 'estado', 'is_staff',
+            'nombreusuario','telefono', 'direccion','departamento','provincia','distrito', 'estado', 'is_staff',
         ]
         extra_kwargs = {'password': {'write_only': True}}
 
@@ -125,6 +126,9 @@ class RegisterSerializer(serializers.ModelSerializer):
             apellidos=validated_data.get('apellidos'),
             nombreusuario=validated_data['nombreusuario'],  # Ahora es el campo de USERNAME_FIELD
             direccion=validated_data.get('direccion'),
+            departamento=validated_data.get('departamento'),
+            provincia=validated_data.get('provincia'),
+            distrito=validated_data.get('distrito'),
             telefono=validated_data.get('telefono'),
             estado=validated_data.get('estado'),
             is_staff=validated_data.get('is_staff')

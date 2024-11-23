@@ -175,6 +175,11 @@ class CustomUser(AbstractUser):
     fechamodificacion = models.DateTimeField(auto_now=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
     
+    departamento = models.CharField(max_length=128, blank=True, null=True)
+    provincia = models.CharField(max_length=128, blank=True, null=True)
+    distrito = models.CharField(max_length=128, blank=True, null=True)
+    
+    
     email_verified_at = models.DateTimeField(blank=True, null=True)
     remember_token = models.CharField(max_length=100, blank=True, null=True)
 

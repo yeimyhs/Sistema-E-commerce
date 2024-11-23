@@ -266,7 +266,7 @@ class TblusuarioViewSet(ModelViewSet):
     serializer_class = CustomUserSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombreusuario', 'nombre', 'apellidos', 'estado']
-    filterset_fields = ['nombreusuario', 'nombre', 'apellidos','telefono', 'estado', 'email_verified_at', 'direccion', 'fechacreacion', 'fechamodificacion']
+    filterset_fields = ['nombreusuario', 'nombre', 'apellidos','departamento','provincia','distrito','telefono', 'estado', 'email_verified_at', 'direccion', 'fechacreacion', 'fechamodificacion']
 
 
 
