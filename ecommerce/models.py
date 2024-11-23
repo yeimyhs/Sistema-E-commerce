@@ -173,6 +173,7 @@ class CustomUser(AbstractUser):
     estado = models.IntegerField()
     fechacreacion = models.DateTimeField(auto_now_add=True)
     fechamodificacion = models.DateTimeField(auto_now=True)
+    telefono = models.CharField(max_length=20, blank=True, null=True)
     
     email_verified_at = models.DateTimeField(blank=True, null=True)
     remember_token = models.CharField(max_length=100, blank=True, null=True)
