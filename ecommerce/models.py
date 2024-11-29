@@ -27,11 +27,11 @@ class Cupon(models.Model):
     class Meta:
         db_table = 'Cupon'
 
-
+#------------------------------------------------------------------
 class Marca(models.Model):
     id = models.BigAutoField(primary_key=True)
     nombre = models.CharField(max_length=128)
-    imgen = models.TextField()  # This field type is a guess.
+    imgen = models.ImageField(upload_to='marca/', blank=True, null=True)  # This field type is a guess.
 
     class Meta:
         db_table = 'Marca'
@@ -50,7 +50,7 @@ class Moneda(models.Model):
 
 class Promocion(models.Model):
     idpromocion = models.BigAutoField(primary_key=True)
-    imagenpromocion = models.TextField(db_column='imagenPromocion')  # Field name made lowercase. This field type is a guess.
+    imagenpromocion = models.ImageField(upload_to='promocion/')  # Field name made lowercase. This field type is a guess.
     estado = models.IntegerField()
     fechacreacion = models.DateTimeField(auto_now_add=True)
     fechamodificacion = models.DateTimeField(auto_now=True)
@@ -86,6 +86,7 @@ class Tblitem(models.Model):
         decimal_places=2, 
         validators=[MinValueValidator(0)]
     )  # This field type is a guess.
+    imagenprincipal= models.ImageField(upload_to='imagenPrincipalItem/', blank=True, null=True)
     estado = models.IntegerField()
     fechacreacion = models.DateTimeField(auto_now_add=True)
     fechamodificacion = models.DateTimeField(auto_now=True)
@@ -127,7 +128,7 @@ class Tblpedido(models.Model):
 
 class Tblslider(models.Model):
     id = models.BigAutoField(primary_key=True)
-    imagen = models.BigIntegerField()
+    imagen = models.ImageField(upload_to='slider/')
     descripcion = models.TextField(blank=True, null=True)
     estado = models.IntegerField()
     fechacreacion = models.DateTimeField(auto_now_add=True)
@@ -237,7 +238,7 @@ class Tbldetallecarrito(models.Model):
 class Tblimagenitem(models.Model):
     idimagen = models.BigAutoField(db_column='idImagen', primary_key=True)  # Field name made lowercase.
     idproduct = models.ForeignKey(Tblitem, models.DO_NOTHING, db_column='idproduct', blank=True, null=True)
-    imagen = models.TextField()  # This field type is a guess.
+    imagen = models.ImageField(upload_to='imagenesitem/') # This field type is a guess.
     estado = models.IntegerField()
 
     class Meta:
@@ -255,6 +256,7 @@ class Tblitempropiedad(models.Model):
     idpropiedad = models.BigAutoField(primary_key=True)
     nombre = models.CharField(max_length=128)
     idclase = models.ForeignKey(Tblitemclase, models.DO_NOTHING, db_column='idclase', blank=True, null=True)
+    icono = models.FileField(upload_to='iconoProiedad/', blank=True, null=True)
 
     class Meta:
         db_table = 'tblItemPropiedad'

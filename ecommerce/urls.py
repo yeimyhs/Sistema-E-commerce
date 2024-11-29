@@ -23,7 +23,7 @@ urlpatterns = [
 ]
 router.register(r'administracion', views.AdministracionViewSet)
 router.register(r'cupon', views.CuponViewSet)
-router.register(r'marca', views.MarcaViewSet)
+#router.register(r'marca', views.MarcaViewSet)
 router.register(r'moneda', views.MonedaViewSet)
 router.register(r'promocion', views.PromocionViewSet)
 router.register(r'tblcarrito', views.TblcarritoViewSet)
