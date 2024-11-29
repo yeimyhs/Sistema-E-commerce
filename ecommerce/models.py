@@ -90,7 +90,7 @@ class Tblitem(models.Model):
     estado = models.IntegerField()
     fechacreacion = models.DateTimeField(auto_now_add=True)
     fechamodificacion = models.DateTimeField(auto_now=True)
-    idmarca = models.ForeignKey(Marca, models.DO_NOTHING, db_column='id', blank=True, null=True)
+    #idmarca = models.ForeignKey(Marca, models.DO_NOTHING, db_column='id', blank=True, null=True)
 
     class Meta:
         db_table = 'TblItem'

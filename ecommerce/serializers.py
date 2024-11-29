@@ -219,7 +219,7 @@ class NombresTblitemClasePropiedadSerializer(serializers.ModelSerializer):
         
 class TblitemSerializer(ModelSerializer):
     clases_propiedades = serializers.SerializerMethodField()
-    imagen_marca =  MarcaSerializer(source='idmarca', read_only=True)
+    #imagen_marca =  MarcaSerializer(source='idmarca', read_only=True)
     imagenes_producto =  serializers.SerializerMethodField()
     class Meta:
         model = Tblitem

@@ -24,5 +24,5 @@ class TblitemFilter(filters.FilterSet):
             'codigosku': ['icontains'],  # Filtro por SKU
             'descripcion': ['icontains'],  # Filtro por descripción
             'estado': ['exact'],  # Filtro por estado
-            'idmarca': ['exact'],  # Filtro por marca
+            #'idmarca': ['exact'],  # Filtro por marca
         }

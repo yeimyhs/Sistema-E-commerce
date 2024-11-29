@@ -197,8 +197,8 @@ class PromocionViewSet(ModelViewSet):
     queryset = Promocion.objects.order_by('pk')
     serializer_class = PromocionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
-    search_fields = ['imagenpromocion', 'estado']
-    filterset_fields = ['idpromocion', 'imagenpromocion', 'estado', 'fechacreacion', 'fechamodificacion']
+    search_fields = [ 'estado']
+    filterset_fields = ['idpromocion', 'estado', 'fechacreacion', 'fechamodificacion']
 
 
 class TblcarritoViewSet(ModelViewSet):
@@ -239,7 +239,7 @@ class TblnoticiaViewSet(ModelViewSet):
     serializer_class = TblnoticiaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['descripcion', 'estado']
-    filterset_fields = ['idnoticia', 'imagennoticia', 'descripcion', 'estado', 'fechacreacion', 'fechamodificacion']
+    filterset_fields = ['idnoticia', 'descripcion', 'estado', 'fechacreacion', 'fechamodificacion']
 
 
 
@@ -257,7 +257,7 @@ class TblsliderViewSet(ModelViewSet):
     serializer_class = TblsliderSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['descripcion', 'estado']
-    filterset_fields = ['id', 'imagen', 'descripcion', 'estado', 'fechacreacion', 'fechamodificacion']
+    filterset_fields = ['id',  'descripcion', 'estado', 'fechacreacion', 'fechamodificacion']
 
 
 
@@ -304,7 +304,7 @@ class TblimagenitemViewSet(ModelViewSet):
     serializer_class = TblimagenitemSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['imagen', 'idproduct__descripcion']
-    filterset_fields = ['idimagen', 'idproduct_id', 'imagen', 'estado']
+    filterset_fields = ['idimagen', 'idproduct_id', 'estado']
 
 
 
