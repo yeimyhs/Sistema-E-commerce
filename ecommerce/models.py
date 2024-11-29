@@ -175,6 +175,8 @@ class CustomUser(AbstractUser):
     fechacreacion = models.DateTimeField(auto_now_add=True)
     fechamodificacion = models.DateTimeField(auto_now=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
+    imagenperfil = models.ImageField(upload_to='perfilUsuarioimagen/', blank=True, null=True)
+
     
     departamento = models.CharField(max_length=128, blank=True, null=True)
     provincia = models.CharField(max_length=128, blank=True, null=True)
