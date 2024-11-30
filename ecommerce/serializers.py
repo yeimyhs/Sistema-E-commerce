@@ -229,8 +229,9 @@ class TblitemSerializer(ModelSerializer):
     class Meta:
         model = Tblitem
         fields = ['idproduct', 'codigosku', 'stock', 'descripcion', 'destacado', 'agotado', 
-                  'nuevoproducto', 'preciorebajado', 'precionormal', 'estado', 
-                  'fechacreacion', 'fechamodificacion', 'clases_propiedades', 'imagenes_producto']
+                  'nuevoproducto', 'preciorebajado', 'precionormal', 'imagenprincipal',
+                  
+                  'estado','fechacreacion', 'fechamodificacion', 'clases_propiedades', 'imagenes_producto']
     def get_clases_propiedades(self, obj):
         clases_propiedades = Tblitemclasepropiedad.objects.filter(idproduct=obj)
         return NombresTblitemClasePropiedadSerializer(clases_propiedades, many=True).data

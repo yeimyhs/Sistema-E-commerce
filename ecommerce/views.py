@@ -35,6 +35,51 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 
+import requests
+from requests.auth import HTTPBasicAuth
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+
+
+@csrf_exempt
+
+def create_payment(request):
+    if request.method == 'POST':
+        try:
+            payload = json.loads(request.body)  # Asegúrate de convertir el cuerpo a JSON
+            url = "https://api.micuentaweb.pe/api-payment/V4/Charge/CreatePayment"
+            
+            # Imprimir el payload para verificar que estás enviando los datos correctamente
+            print("Payload:", payload)
+
+            response = requests.post(
+                url,
+                auth=HTTPBasicAuth(settings.IZIPAY_USERNAME, settings.IZIPAY_PASSWORD),
+                json=payload
+            )
+            
+            # Imprimir la respuesta para ver qué devuelve el servidor
+            print("Response Status Code:", response.status_code)
+            print("Response Body:", response.text)
+
+            if response.status_code == 200:
+                return JsonResponse(response.json(), status=200)
+            else:
+                # Si hay error, devolver el mensaje y el código de estado
+                return JsonResponse({
+                    "status": "error", 
+                    "message": response.json()
+                }, status=400)
+        
+        except Exception as e:
+            # Capturar el error completo y devolverlo en la respuesta
+            print(f"Error: {e}")
+            return JsonResponse({"status": "error", "message": "Hubo un error al procesar la solicitud."}, status=500)
+    
+    else:
+        return JsonResponse({"status": "error", "message": "Método no permitido."}, status=405)
+    
 class ClasesYPropiedadesView(APIView):
     def get(self, request):
         # Inicializa una lista para almacenar las clases y sus propiedades
