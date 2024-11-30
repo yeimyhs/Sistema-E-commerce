@@ -104,6 +104,8 @@ class CustomUserSerializer(serializers.ModelSerializer):
             'fechacreacion',  # Campo de creación automática
             'fechamodificacion',  # Campo de modificación automática
             'telefono',
+            'imagenperfil',
+            
             'email_verified_at',
             'remember_token',
             'is_staff',
@@ -114,7 +116,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = [
             'email', 'password', 'nombre', 'apellidos', 
-            'nombreusuario','telefono', 'direccion','departamento','provincia','distrito', 'estado', 'is_staff',
+            'nombreusuario','telefono','imagenperfil',
+            'direccion','departamento','provincia','distrito', 'estado', 'is_staff',
         ]
         extra_kwargs = {'password': {'write_only': True}}
 
@@ -130,6 +133,8 @@ class RegisterSerializer(serializers.ModelSerializer):
             provincia=validated_data.get('provincia'),
             distrito=validated_data.get('distrito'),
             telefono=validated_data.get('telefono'),
+            imagenperfil=validated_data.get('imagenperfil'), 
+            
             estado=validated_data.get('estado'),
             is_staff=validated_data.get('is_staff')
         )
