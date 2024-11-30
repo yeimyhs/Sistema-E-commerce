@@ -70,6 +70,7 @@ class Tblcarrito(models.Model):
 class Tblitem(models.Model):
     codigosku = models.CharField(db_column='codigoSKU', unique=True, max_length=25)  # Field name made lowercase.
     #pliegues = models.CharField(max_length=20, blank=True, null=True)
+    titulo = models.CharField(max_length=128)
     stock = models.IntegerField()
     descripcion = models.TextField()
     idproduct = models.BigAutoField(primary_key=True)
