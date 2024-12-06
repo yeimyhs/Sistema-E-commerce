@@ -228,7 +228,7 @@ class TblitemSerializer(ModelSerializer):
     imagenes_producto =  serializers.SerializerMethodField()
     class Meta:
         model = Tblitem
-        fields = ['idproduct', 'codigosku', 'stock', 'descripcion', 'destacado', 'agotado', 
+        fields = ['idproduct', 'codigosku', 'titulo','stock', 'descripcion', 'destacado', 'agotado', 
                   'nuevoproducto', 'preciorebajado', 'precionormal', 'imagenprincipal',
                   
                   'estado','fechacreacion', 'fechamodificacion', 'clases_propiedades', 'imagenes_producto']

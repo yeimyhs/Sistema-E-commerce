@@ -276,6 +276,14 @@ class Tblitemclasepropiedad(models.Model):
         db_table = 'tblItemClasePropiedad'
 
 
+class Tblitemcupon(models.Model):
+    id = models.BigAutoField(db_column='Id', primary_key=True)  # Field name made lowercase.
+    iditem = models.ForeignKey(Tblitem, models.DO_NOTHING, db_column='iditem', related_name='cupon_relacionado')
+    idcupon = models.ForeignKey(Cupon, models.DO_NOTHING, db_column='idcupon', blank=True, null=True)
+
+    class Meta:
+        db_table = 'tblItemCupon'
+
 
 
 
