@@ -258,7 +258,9 @@ from rest_framework import viewsets
 from .models import Tblitem
 from .serializers import TblitemSerializer
 from .filters import TblitemclasepropiedadFilter
-from .filters import TblitemFilter
+from .filters import *
+from rest_framework import filters
+
 class TblitemViewSet(ModelViewSet):
     queryset = Tblitem.objects.prefetch_related(
         'clases_propiedades',
@@ -266,7 +268,7 @@ class TblitemViewSet(ModelViewSet):
         'clases_propiedades__idpropiedad' # Prefetch para las propiedades
     ).all()
     serializer_class = TblitemSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend,DateTimeIntervalFilter]
     filterset_class = TblitemFilter
     
     # Agrega campos relacionados para la búsqueda
