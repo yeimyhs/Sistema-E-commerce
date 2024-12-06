@@ -276,6 +276,15 @@ class TblitemViewSet(ModelViewSet):
         'clases_propiedades__idclase__nombre',  # Nombre de la clase relacionada
         'clases_propiedades__idpropiedad__nombre'  # Nombre de la propiedad relacionada
     ]
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+    def get_queryset(self):
+        # Solo usuarios admin pueden ver los cupones completos
+        if self.request.user.is_staff:
+            return Tblitem.objects.prefetch_related('cupon_relacionado')  # Optimización
+        # Si no es admin, excluir cupones relacionados
+        return Tblitem.objects.all()
 
 
 
@@ -359,6 +368,13 @@ class TblitemclaseViewSet(ModelViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre']
     filterset_fields = ['idclase', 'nombre']
+
+class tblitemcuponSerializerViewSet(ModelViewSet):
+    queryset = tblitemcupon.objects.order_by('pk')
+    serializer_class = tblitemcuponSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    search_fields = ['nombre']
+    filterset_fields = ['id', 'iditem_id', 'idcupon_id']
 
 
 

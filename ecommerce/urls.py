@@ -42,6 +42,7 @@ router.register(r'tblitemclasepropiedad', views.TblitemclasepropiedadViewSet)
 router.register(r'tblitempropiedad', views.TblitempropiedadViewSet)
 router.register(r'tblitemrelacionado', views.TblitemrelacionadoViewSet)
 router.register(r'tbldetallepedido', views.TbldetallepedidoViewSet)
+router.register(r'tblitemcupon', views.tblitemcuponSerializerViewSet)
 
 urlpatterns = urlpatterns + router.urls
 

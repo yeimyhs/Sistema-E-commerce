@@ -198,6 +198,11 @@ class TblitemclasepropiedadSerializer(ModelSerializer):
         model = Tblitemclasepropiedad
         fields = '__all__'
 
+class tblitemcuponSerializer(ModelSerializer):
+    class Meta:
+        model = tblitemcupon
+        fields = '__all__'
+
 
 
 
@@ -226,12 +231,13 @@ class TblitemSerializer(ModelSerializer):
     clases_propiedades = serializers.SerializerMethodField()
     #imagen_marca =  MarcaSerializer(source='idmarca', read_only=True)
     imagenes_producto =  serializers.SerializerMethodField()
+    cupones = serializers.SerializerMethodField()
     class Meta:
         model = Tblitem
         fields = ['idproduct', 'codigosku', 'titulo','stock', 'descripcion', 'destacado', 'agotado', 
                   'nuevoproducto', 'preciorebajado', 'precionormal', 'imagenprincipal',
                   
-                  'estado','fechacreacion', 'fechamodificacion', 'clases_propiedades', 'imagenes_producto']
+                  'estado','fechacreacion', 'fechamodificacion', 'clases_propiedades', 'imagenes_producto', 'cupones']
     def get_clases_propiedades(self, obj):
         clases_propiedades = Tblitemclasepropiedad.objects.filter(idproduct=obj)
         return NombresTblitemClasePropiedadSerializer(clases_propiedades, many=True).data
@@ -239,4 +245,8 @@ class TblitemSerializer(ModelSerializer):
         
     def get_imagenes_producto(self, obj):
         imagenes_producto = Tblimagenitem.objects.filter(idproduct=obj)
-        return TblimagenitemSerializer(imagenes_producto, many=True).data   
+        return TblimagenitemSerializer(imagenes_producto, many=True).data 
+    
+    def get_cupones(self, obj):
+        # Muestra cupones solo si se han prefetch en la consulta (control en la vista)
+        return tblitemcuponSerializer(obj.cupon_relacionado.all(), many=True).data  
