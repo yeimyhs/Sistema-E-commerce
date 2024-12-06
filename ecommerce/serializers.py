@@ -167,6 +167,22 @@ class TblimagenitemSerializer(ModelSerializer):
         model = Tblimagenitem
         fields = '__all__'
 
+class MultipleImagenItemSerializer(serializers.Serializer):
+    idproduct = serializers.IntegerField()  # ID del producto relacionado
+    imagenes = serializers.ListField(
+        child=serializers.ImageField(),
+        write_only=True
+    )
+
+    def create(self, validated_data):
+        idproduct = validated_data.get('idproduct')
+        imagenes = validated_data.get('imagenes')
+        items = [
+            Tblimagenitem(idproduct_id=idproduct, imagen=imagen, estado=1)  # Cambia estado según tu lógica
+            for imagen in imagenes
+        ]
+        return Tblimagenitem.objects.bulk_create(items)  # Crea todas las imágenes de golpe
+
 
 class TblitempropiedadSerializer(ModelSerializer):
 

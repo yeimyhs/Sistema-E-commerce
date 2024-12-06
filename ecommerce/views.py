@@ -359,9 +359,30 @@ class TblimagenitemViewSet(ModelViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['imagen', 'idproduct__descripcion']
     filterset_fields = ['idimagen', 'idproduct_id', 'estado']
+    
+    @action(detail=False, methods=['post'], url_path='upload-multiple')
+    def upload_multiple(self, request):
+        """
+        Endpoint personalizado para subir múltiples imágenes relacionadas a un producto.
+        """
+        serializer = MultipleImagenItemSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'message': 'Imágenes subidas exitosamente'}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
+
+class MultipleImagenItemView(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = MultipleImagenItemSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'message': 'Imágenes subidas exitosamente'}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
 class TblitemclaseViewSet(ModelViewSet):
     queryset = Tblitemclase.objects.order_by('pk')
     serializer_class = TblitemclaseSerializer
