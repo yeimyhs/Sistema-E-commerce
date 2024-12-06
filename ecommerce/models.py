@@ -88,6 +88,7 @@ class Tblitem(models.Model):
         validators=[MinValueValidator(0)]
     )  # This field type is a guess.
     imagenprincipal= models.ImageField(upload_to='imagenPrincipalItem/', blank=True, null=True)
+    fechapublicacion = models.DateTimeField()
     
     
     estado = models.IntegerField()
