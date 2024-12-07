@@ -103,8 +103,11 @@ class Tblitem(models.Model):
 class Tblnoticia(models.Model):
     estado = models.IntegerField()
     idnoticia = models.BigAutoField(db_column='idNoticia', primary_key=True)  # Field name made lowercase.
+    titulo = models.CharField(max_length=225)
     imagennoticia = models.TextField(db_column='imagenNoticia')  # Field name made lowercase. This field type is a guess.
     descripcion = models.TextField()
+    fechapublicacion = models.DateTimeField()
+    
     fechacreacion = models.DateTimeField(auto_now_add=True)
     fechamodificacion = models.DateTimeField(auto_now=True)
 
@@ -130,16 +133,18 @@ class Tblpedido(models.Model):
         db_table = 'TblPedido'
 
 
-class Tblslider(models.Model):
+class TblCarrusel(models.Model):
     id = models.BigAutoField(primary_key=True)
     imagen = models.ImageField(upload_to='slider/')
+    titulo = models.CharField(max_length=225)
     descripcion = models.TextField(blank=True, null=True)
     estado = models.IntegerField()
+    fechapublicacion = models.DateTimeField()
     fechacreacion = models.DateTimeField(auto_now_add=True)
     fechamodificacion = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'TblSlider'
+        db_table = 'TblCarrusel'
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, nombreusuario, password=None, **extra_fields):

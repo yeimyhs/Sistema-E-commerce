@@ -1,5 +1,5 @@
 from rest_framework.serializers import ModelSerializer
-from ecommerce.models import Administracion, Cupon, Marca, Moneda, Promocion, Tblcarrito, Tblitem, Tblnoticia, Tblpedido, Tblslider, Tipocambio, Valoracion, Tbldetallecarrito, Tblimagenitem, Tblitemclase, Tblitemclasepropiedad, Tblitempropiedad, Tblitemrelacionado, Tbldetallepedido
+from ecommerce.models import Administracion, Cupon, Marca, Moneda, Promocion, Tblcarrito, Tblitem, Tblnoticia, Tblpedido, TblCarrusel, Tipocambio, Valoracion, Tbldetallecarrito, Tblimagenitem, Tblitemclase, Tblitemclasepropiedad, Tblitempropiedad, Tblitemrelacionado, Tbldetallepedido
 
 from .models import *
 from .serializers import *
@@ -82,10 +82,10 @@ class TblpedidoSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class TblsliderSerializer(ModelSerializer):
+class TblCarruselSerializer(ModelSerializer):
 
     class Meta:
-        model = Tblslider
+        model = TblCarrusel
         fields = '__all__'
 
 
