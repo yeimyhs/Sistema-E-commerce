@@ -92,7 +92,7 @@ class TblCarruselSerializer(ModelSerializer):
 class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = [
+        fields = ['activo',
             'id',
             'email',
             'nombre',
@@ -114,7 +114,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = [
+        fields = ['activo',
             'email', 'password', 'nombre', 'apellidos', 
             'nombreusuario','telefono','imagenperfil',
             'direccion','departamento','provincia','distrito', 'estado', 'is_staff',
@@ -241,7 +241,7 @@ class NombresTblitemClasePropiedadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tblitemclasepropiedad
-        fields = ['clase_nombre', 'propiedad_nombre'] 
+        fields = ['activo','clase_nombre', 'propiedad_nombre'] 
         
 class TblitemSerializer(ModelSerializer):
     clases_propiedades = serializers.SerializerMethodField()
@@ -250,7 +250,7 @@ class TblitemSerializer(ModelSerializer):
     cupones = serializers.SerializerMethodField()
     class Meta:
         model = Tblitem
-        fields = ['idproduct', 'codigosku', 'titulo','stock', 'descripcion', 'destacado', 'agotado', 
+        fields = ['activo','idproduct', 'codigosku', 'titulo','stock', 'descripcion', 'destacado', 'agotado', 
                   'nuevoproducto', 'preciorebajado', 'precionormal', 'imagenprincipal','fechapublicacion',
                   
                   'estado','fechacreacion', 'fechamodificacion', 'clases_propiedades', 'imagenes_producto', 'cupones']
