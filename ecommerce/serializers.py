@@ -135,6 +135,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             telefono=validated_data.get('telefono'),
             imagenperfil=validated_data.get('imagenperfil'), 
             
+            activo=validated_data.get('activo'),
             estado=validated_data.get('estado'),
             is_staff=validated_data.get('is_staff')
         )
