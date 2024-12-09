@@ -90,10 +90,10 @@ class Tblitem(models.Model):
     precionormal = models.DecimalField(max_digits=20, decimal_places=2)  # This field type is a guess.
     imagenprincipal= models.ImageField(upload_to='imagenPrincipalItem/', blank=True, null=True)
     fechapublicacion = models.DateTimeField()
-    peso = models.DecimalField(max_digits=20, decimal_places=2)  # This field type is a guess.
-    altura = models.DecimalField(max_digits=20, decimal_places=2)  # This field type is a guess.
-    profundidad = models.DecimalField(max_digits=20, decimal_places=2)  # This field type is a guess.
-    ancho = models.DecimalField(max_digits=20, decimal_places=2)  # This field type is a guess.
+    peso = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)  # This field type is a guess.
+    altura = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)  # This field type is a guess.
+    profundidad = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)  # This field type is a guess.
+    ancho = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)  # This field type is a guess.
     
     
     estado = models.IntegerField()
@@ -311,14 +311,19 @@ class tblitemcupon(models.Model):
 
 class Tblitemrelacionado(models.Model):
     activo = models.BooleanField()
-    idproduct = models.ForeignKey(Tblitem, models.DO_NOTHING, db_column='idproduct', blank=True, null=True)
     id = models.BigAutoField(primary_key=True)
-    fk = models.ForeignKey('self', models.DO_NOTHING, db_column='FK_id', blank=True, null=True)  # Field name made lowercase.
+    item = models.ForeignKey(Tblitem, related_name='relacionados', on_delete=models.CASCADE)
+    item_relacionado = models.ForeignKey(Tblitem, related_name='relacionados_por', on_delete=models.CASCADE)
 
+    def save(self, *args, **kwargs):
+        if self.item == self.item_relacionado:
+            raise ValidationError('Un item no puede estar relacionado consigo mismo.')
+        super().save(*args, **kwargs)
     class Meta:
-        db_table = 'tblItemRelacionado'
-
-
+        constraints = [
+            models.UniqueConstraint(fields=['item', 'item_relacionado'], name='unique_item_relacion')
+        ]
+        
 class Tbldetallepedido(models.Model):
     activo = models.BooleanField()
     idpedido = models.OneToOneField(Tblpedido, models.DO_NOTHING, db_column='idpedido', primary_key=True)
