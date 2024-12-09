@@ -39,7 +39,6 @@ class Marca(models.Model):
         db_table = 'Marca'
 
 
-
 class Moneda(models.Model):
     activo = models.BooleanField()
     idmoneda = models.BigAutoField(primary_key=True)
@@ -87,15 +86,14 @@ class Tblitem(models.Model):
     nuevoproducto = models.BooleanField()
     preciorebajado = models.DecimalField(
         max_digits=20, 
-        decimal_places=2, 
-        validators=[MinValueValidator(0)], blank=True, null=True)  # This field type is a guess.
-    precionormal = models.DecimalField(
-        max_digits=20, 
-        decimal_places=2, 
-        validators=[MinValueValidator(0)]
-    )  # This field type is a guess.
+        decimal_places=2, blank=True, null=True)  # This field type is a guess.
+    precionormal = models.DecimalField(max_digits=20, decimal_places=2)  # This field type is a guess.
     imagenprincipal= models.ImageField(upload_to='imagenPrincipalItem/', blank=True, null=True)
     fechapublicacion = models.DateTimeField()
+    peso = models.DecimalField(max_digits=20, decimal_places=2)  # This field type is a guess.
+    altura = models.DecimalField(max_digits=20, decimal_places=2)  # This field type is a guess.
+    profundidad = models.DecimalField(max_digits=20, decimal_places=2)  # This field type is a guess.
+    ancho = models.DecimalField(max_digits=20, decimal_places=2)  # This field type is a guess.
     
     
     estado = models.IntegerField()

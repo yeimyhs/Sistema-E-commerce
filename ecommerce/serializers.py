@@ -253,6 +253,7 @@ class TblitemSerializer(ModelSerializer):
         model = Tblitem
         fields = ['activo','idproduct', 'codigosku', 'titulo','stock', 'descripcion', 'destacado', 'agotado', 
                   'nuevoproducto', 'preciorebajado', 'precionormal', 'imagenprincipal','fechapublicacion',
+                  'peso','altura','ancho','profundidad',
                   
                   'estado','fechacreacion', 'fechamodificacion', 'clases_propiedades', 'imagenes_producto', 'cupones']
     def get_clases_propiedades(self, obj):
