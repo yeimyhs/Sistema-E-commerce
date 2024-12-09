@@ -1,6 +1,6 @@
 from rest_framework.viewsets import ModelViewSet
-from ecommerce.serializers import AdministracionSerializer, CuponSerializer, MarcaSerializer, MonedaSerializer, PromocionSerializer, TblcarritoSerializer, TblitemSerializer, TblnoticiaSerializer, TblpedidoSerializer, TblCarruselSerializer, TipocambioSerializer, ValoracionSerializer, TbldetallecarritoSerializer, TblimagenitemSerializer, TblitemclaseSerializer, TblitemclasepropiedadSerializer, TblitempropiedadSerializer, TblitemrelacionadoSerializer, TbldetallepedidoSerializer
-from ecommerce.models import Administracion, Cupon, Marca, Moneda, Promocion, Tblcarrito, Tblitem, Tblnoticia, Tblpedido, TblCarrusel, Tipocambio, Valoracion, Tbldetallecarrito, Tblimagenitem, Tblitemclase, Tblitemclasepropiedad, Tblitempropiedad, Tblitemrelacionado, Tbldetallepedido
+from ecommerce.serializers import AdministracionSerializer, CuponSerializer, MarcaSerializer, MonedaSerializer, PromocionSerializer, TblcarritoSerializer, TblitemSerializer, TblnoticiaSerializer, TblpedidoSerializer, TblCarruselSerializer, TipocambioSerializer, ValoracionSerializer, TbldetallecarritoSerializer, TblimagenitemSerializer, TblitemclaseSerializer, TblitempropiedadSerializer, TblitemrelacionadoSerializer, TbldetallepedidoSerializer
+from ecommerce.models import Administracion, Cupon, Marca, Moneda, Promocion, Tblcarrito, Tblitem, Tblnoticia, Tblpedido, TblCarrusel, Tipocambio, Valoracion, Tbldetallecarrito, Tblimagenitem, Tblitemclase, Tblitempropiedad, Tblitemrelacionado, Tbldetallepedido
 
 from django.contrib.auth import login
 from rest_framework import permissions
@@ -90,8 +90,11 @@ class ClasesYPropiedadesView(APIView):
         
         # Agrupa las propiedades por clase
         for clase in clases:
-            propiedades = Tblitempropiedad.objects.filter(idclase=clase)
-            propiedades_list = [{"idpropiedad": p.idpropiedad, "nombre": p.nombre} for p in propiedades]
+            vinculos = tblitemclasevinculo.objects.filter(idclase=clase, activo=True).values('propiedad').distinct()
+
+# Construir la lista de propiedades únicas
+            propiedades_list = [{ "nombre": v['propiedad']} for v in vinculos]
+
             clases_propiedades.append({
                 "idclase": clase.idclase,
                 "clase": clase.nombre,
@@ -123,7 +126,8 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
     )
     
     def list(self, request):
-        query = Q()  
+        query = Q()  # Inicializamos una consulta vacía
+
         for filtro in request.query_params.getlist("clase"):
             # Dividimos el valor en clase y propiedad
             if "propiedad=" in filtro:
@@ -132,16 +136,15 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
                     # Agregamos la combinación a la consulta con OR
                     query |= Q(
                         clases_propiedades__idclase=clase,
-                        clases_propiedades__idpropiedad=propiedad
+                        clases_propiedades__propiedad__iexact=propiedad.strip()  # Comparación case-insensitive
                     )
                 except ValueError:
                     continue  # Si no tiene el formato esperado, lo ignoramos
 
+        # Filtramos los items que cumplen con la consulta
         items = Tblitem.objects.filter(query).distinct()
         serializer = TblitemSerializer(items, many=True)
         return Response(serializer.data)
-
-
 
 class LoginView(KnoxLoginView):
     permission_classes = (permissions.AllowAny,)
@@ -207,7 +210,7 @@ class AdministracionViewSet(ModelViewSet):
     serializer_class = AdministracionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombreempresa', 'ruc', 'telefono', 'idmoneda__nombre']
-    filterset_fields = ['nombreempresa', 'ruc', 'telefono', 'igv', 'idmoneda_id', 'idmoneda__nombre', 'fechacreacion', 'fechamodificacion']
+    filterset_fields = ['activo', 'nombreempresa', 'ruc', 'telefono', 'igv', 'idmoneda_id', 'idmoneda__nombre', 'fechacreacion', 'fechamodificacion']
 
 
 
@@ -216,7 +219,7 @@ class CuponViewSet(ModelViewSet):
     serializer_class = CuponSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['descripcion', 'estado', 'fechavigencia']
-    filterset_fields = ['idcupon', 'cantidaddescuento', 'estado', 'fechavigencia', 'fechacreacion', 'fechamodificacion']
+    filterset_fields = ['activo', 'idcupon', 'cantidaddescuento', 'estado', 'fechavigencia', 'fechacreacion', 'fechamodificacion']
 
 
 
@@ -225,7 +228,16 @@ class MarcaViewSet(ModelViewSet):
     serializer_class = MarcaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre']
-    filterset_fields = ['id', 'nombre', 'imgen']
+    filterset_fields = ['activo', 'id', 'nombre']
+
+
+class TblmodeloViewSet(ModelViewSet):
+    queryset = Tblmodelo.objects.order_by('pk')
+    serializer_class = TblmodeloSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    search_fields = ['nombre']
+    filterset_fields = ['activo', 'id', 'nombre', 'idmarca_id']
+
 
 
 
@@ -234,7 +246,7 @@ class MonedaViewSet(ModelViewSet):
     serializer_class = MonedaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre']
-    filterset_fields = ['idmoneda', 'nombre', 'estado', 'fechacreacion', 'fechamodificacion']
+    filterset_fields = ['activo', 'idmoneda', 'nombre', 'estado', 'fechacreacion', 'fechamodificacion']
 
 
 
@@ -243,7 +255,7 @@ class PromocionViewSet(ModelViewSet):
     serializer_class = PromocionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = [ 'estado']
-    filterset_fields = ['idpromocion', 'estado', 'fechacreacion', 'fechamodificacion']
+    filterset_fields = ['activo', 'idpromocion', 'estado', 'fechacreacion', 'fechamodificacion']
 
 
 class TblcarritoViewSet(ModelViewSet):
@@ -251,7 +263,7 @@ class TblcarritoViewSet(ModelViewSet):
     serializer_class = TblcarritoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['idusuario__nombreusuario', 'preciototal']
-    filterset_fields = ['idusuario_id', 'preciototal']
+    filterset_fields = ['activo', 'idusuario_id', 'preciototal']
 
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
@@ -295,7 +307,7 @@ class TblnoticiaViewSet(ModelViewSet):
     serializer_class = TblnoticiaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['descripcion', 'estado']
-    filterset_fields = ['idnoticia', 'descripcion', 'estado', 'fechacreacion', 'fechamodificacion']
+    filterset_fields = ['activo', 'idnoticia', 'descripcion', 'estado', 'fechacreacion', 'fechamodificacion']
 
 
 
@@ -304,7 +316,7 @@ class TblpedidoViewSet(ModelViewSet):
     serializer_class = TblpedidoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['idcliente__nombreusuario', 'total', 'estado']
-    filterset_fields = ['idpedido', 'idcliente_id', 'subtotal', 'total', 'igv', 'totaldescuento', 'idcupon_id', 'idmoneda_id', 'estado', 'fechacreacion', 'fechamodificacion']
+    filterset_fields = ['activo', 'idpedido', 'idcliente_id', 'subtotal', 'total', 'igv', 'totaldescuento', 'idcupon_id', 'idmoneda_id', 'estado', 'fechacreacion', 'fechamodificacion']
 
 
 
@@ -313,7 +325,7 @@ class TblCarruselViewSet(ModelViewSet):
     serializer_class = TblCarruselSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['descripcion', 'estado']
-    filterset_fields = ['id',  'descripcion', 'estado', 'fechacreacion', 'fechamodificacion']
+    filterset_fields = ['activo', 'id',  'descripcion', 'estado', 'fechacreacion', 'fechamodificacion']
 
 
 
@@ -322,7 +334,7 @@ class TblusuarioViewSet(ModelViewSet):
     serializer_class = CustomUserSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombreusuario', 'nombre', 'apellidos', 'estado']
-    filterset_fields = ['nombreusuario', 'nombre', 'apellidos','departamento','provincia','distrito','telefono', 'estado', 'email_verified_at', 'direccion', 'fechacreacion', 'fechamodificacion','is_staff']
+    filterset_fields = ['activo', 'nombreusuario', 'nombre', 'apellidos','departamento','provincia','distrito','telefono', 'estado', 'email_verified_at', 'direccion', 'fechacreacion', 'fechamodificacion','is_staff']
 
 
 
@@ -331,7 +343,7 @@ class TipocambioViewSet(ModelViewSet):
     serializer_class = TipocambioSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['tipocambio', 'idmoneda__nombre', 'fechacreacion', 'fechamodificacion']
-    filterset_fields = ['tipocambio', 'idmoneda__nombre', 'fechacreacion', 'fechamodificacion']
+    filterset_fields = ['activo', 'tipocambio', 'idmoneda__nombre', 'fechacreacion', 'fechamodificacion']
 
 
 
@@ -341,7 +353,7 @@ class ValoracionViewSet(ModelViewSet):
     serializer_class = ValoracionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['comentario', 'estrellas']
-    filterset_fields = ['idvaloracion', 'estrellas', 'comentario', 'estado', 'telefono', 'idproduct_id', 'fechacreacion', 'fechamodificacion']
+    filterset_fields = ['activo', 'idvaloracion', 'estrellas', 'comentario', 'estado', 'telefono', 'idproduct_id', 'fechacreacion', 'fechamodificacion']
 
     
 
@@ -351,7 +363,7 @@ class TbldetallecarritoViewSet(ModelViewSet):
     serializer_class = TbldetallecarritoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['idproduct__descripcion', 'cantidad']
-    filterset_fields = [ 'idproduct_id', 'cantidad', 'isuser_id', 'idcupon_id']
+    filterset_fields = ['activo',  'idproduct_id', 'cantidad', 'isuser_id', 'idcupon_id']
 
 
 
@@ -360,7 +372,7 @@ class TblimagenitemViewSet(ModelViewSet):
     serializer_class = TblimagenitemSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['imagen', 'idproduct__descripcion']
-    filterset_fields = ['idimagen', 'idproduct_id', 'estado']
+    filterset_fields = ['activo', 'idimagen', 'idproduct_id', 'estado']
     
     @action(detail=False, methods=['post'], url_path='upload-multiple')
     def upload_multiple(self, request):
@@ -390,23 +402,23 @@ class TblitemclaseViewSet(ModelViewSet):
     serializer_class = TblitemclaseSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre']
-    filterset_fields = ['idclase', 'nombre']
+    filterset_fields = ['activo', 'idclase', 'nombre']
 
 class tblitemcuponSerializerViewSet(ModelViewSet):
     queryset = tblitemcupon.objects.order_by('pk')
     serializer_class = tblitemcuponSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre']
-    filterset_fields = ['id', 'iditem_id', 'idcupon_id']
+    filterset_fields = ['activo', 'id', 'iditem_id', 'idcupon_id']
 
 
 
-class TblitemclasepropiedadViewSet(ModelViewSet):
-    queryset = Tblitemclasepropiedad.objects.order_by('pk')
-    serializer_class = TblitemclasepropiedadSerializer
+class tblitemclasevinculoViewSet(ModelViewSet):
+    queryset = tblitemclasevinculo.objects.order_by('pk')
+    serializer_class = TblitemclasevinculoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
-    search_fields = ['idproduct__descripcion', 'idpropiedad__nombre', 'idclase__nombre']
-    filterset_fields = ['id', 'idproduct_id', 'idpropiedad_id', 'idclase_id']
+    search_fields = [ 'propiedad', 'idclase__nombre']
+    filterset_fields = ['activo', 'id', 'iditem_id', 'propiedad', 'idclase_id']
 
 
 
@@ -415,7 +427,7 @@ class TblitempropiedadViewSet(ModelViewSet):
     serializer_class = TblitempropiedadSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre', 'idclase__nombre']
-    filterset_fields = ['idpropiedad', 'nombre', 'idclase_id']
+    filterset_fields = ['activo', 'idpropiedad', 'nombre', 'idclase_id']
     @action(detail=False, methods=['get'], url_path='por-clase/(?P<clase_id>\d+)')
     def por_clase(self, request, clase_id=None):
         """
@@ -433,7 +445,7 @@ class TblitemrelacionadoViewSet(ModelViewSet):
     serializer_class = TblitemrelacionadoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['item_id__descripcion']
-    filterset_fields = ['item_id', 'item_relacionado_id']
+    filterset_fields = ['activo', 'item_id', 'item_relacionado_id']
 
 
 
@@ -442,4 +454,4 @@ class TbldetallepedidoViewSet(ModelViewSet):
     serializer_class = TbldetallepedidoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['idpedido__id', 'idproduct__descripcion']
-    filterset_fields = ['idpedido_id', 'idproduct_id', 'cantidad', 'preciototal', 'preciunitario']
+    filterset_fields = ['activo', 'idpedido_id', 'idproduct_id', 'cantidad', 'preciototal', 'preciunitario']

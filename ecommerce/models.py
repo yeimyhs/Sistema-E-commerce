@@ -33,10 +33,20 @@ class Marca(models.Model):
     activo = models.BooleanField()
     id = models.BigAutoField(primary_key=True)
     nombre = models.CharField(max_length=128)
-    imgen = models.ImageField(upload_to='marca/', blank=True, null=True)  # This field type is a guess.
+    imagen = models.ImageField(upload_to='marca/', blank=True, null=True)  # This field type is a guess.
 
     class Meta:
         db_table = 'Marca'
+        
+        
+class Tblmodelo(models.Model):
+    activo = models.BooleanField()
+    id = models.BigAutoField(primary_key=True)
+    nombre = models.CharField(max_length=128)
+    idmarca = models.ForeignKey(Marca, models.DO_NOTHING, db_column='idmarca', blank=True, null=True)
+
+    class Meta:
+        db_table = 'TblModelo'
 
 
 class Moneda(models.Model):
@@ -99,7 +109,7 @@ class Tblitem(models.Model):
     estado = models.IntegerField()
     fechacreacion = models.DateTimeField(auto_now_add=True)
     fechamodificacion = models.DateTimeField(auto_now=True)
-    idmarca = models.ForeignKey(Marca, models.DO_NOTHING, db_column='id', blank=True, null=True)
+    idmodelo = models.ForeignKey(Tblmodelo, models.DO_NOTHING, db_column='idmodelo', blank=True, null=True)
 
     class Meta:
         db_table = 'TblItem'
@@ -286,15 +296,15 @@ class Tblitempropiedad(models.Model):
     class Meta:
         db_table = 'tblItemPropiedad'
         
-class Tblitemclasepropiedad(models.Model):
+class tblitemclasevinculo(models.Model):
     activo = models.BooleanField()
     id = models.BigAutoField(db_column='Id', primary_key=True)  # Field name made lowercase.
-    idproduct = models.ForeignKey(Tblitem, models.DO_NOTHING, db_column='idproduct', related_name='clases_propiedades')
-    idpropiedad = models.ForeignKey(Tblitempropiedad, models.DO_NOTHING, db_column='idpropiedad', blank=True, null=True)
-    idclase = models.ForeignKey(Tblitemclase, models.DO_NOTHING, db_column='idclase', blank=True, null=True)
+    iditem = models.ForeignKey(Tblitem, on_delete=models.CASCADE, db_column='iditem', related_name='clases_propiedades')
+    propiedad = models.CharField(max_length=225)
+    idclase = models.ForeignKey(Tblitemclase, on_delete=models.CASCADE, db_column='idclase')
 
     class Meta:
-        db_table = 'tblItemClasePropiedad'
+        db_table = 'tblItemClaseVinculo'
 
 
 class tblitemcupon(models.Model):
