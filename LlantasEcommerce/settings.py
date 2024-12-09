@@ -147,7 +147,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'es-pe'
 
-TIME_ZONE = 'America/Lima'
+TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
@@ -176,7 +176,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')  # Ruta donde se guardan los archiv
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGGING = {
+LOGGING_variablequitarlodeminiscula = {
     'version': 1,
     'disable_existing_loggers': False,
     'handlers': {
