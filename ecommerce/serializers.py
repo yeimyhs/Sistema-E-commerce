@@ -23,7 +23,12 @@ class CustomAuthTokenSerializer(serializers.Serializer):
         attrs['user'] = user
         return attrs
 
+class TblitemBasicoSerializer(ModelSerializer):
 
+    class Meta:
+        model = Tblitem
+        fields = '__all__'
+        
 class AdministracionSerializer(ModelSerializer):
 
     class Meta:
@@ -224,10 +229,13 @@ class tblitemcuponSerializer(ModelSerializer):
 
 
 class TblitemrelacionadoSerializer(ModelSerializer):
+    # Serializar los detalles de los productos relacionados
+    #item_detalle = TblitemSerializer(source='item', read_only=True)
+    item_relacionado_detalle = TblitemBasicoSerializer(source='item_relacionado', read_only=True)
 
     class Meta:
         model = Tblitemrelacionado
-        fields = '__all__'
+        fields = ['id', 'activo', 'item', 'item_relacionado', 'item_relacionado_detalle']
 
 
 class TbldetallepedidoSerializer(ModelSerializer):
@@ -249,13 +257,14 @@ class TblitemSerializer(ModelSerializer):
     #imagen_marca =  MarcaSerializer(source='idmarca', read_only=True)
     imagenes_producto =  serializers.SerializerMethodField()
     cupones = serializers.SerializerMethodField()
+    items_relacionados = serializers.SerializerMethodField() 
     class Meta:
         model = Tblitem
         fields = ['activo','idproduct', 'codigosku', 'titulo','stock', 'descripcion', 'destacado', 'agotado', 
                   'nuevoproducto', 'preciorebajado', 'precionormal', 'imagenprincipal','fechapublicacion',
                   'peso','altura','ancho','profundidad',
                   
-                  'estado','fechacreacion', 'fechamodificacion', 'clases_propiedades', 'imagenes_producto', 'cupones']
+                  'estado','fechacreacion', 'fechamodificacion', 'clases_propiedades', 'imagenes_producto', 'cupones','items_relacionados' ]
     def get_clases_propiedades(self, obj):
         clases_propiedades = Tblitemclasepropiedad.objects.filter(idproduct=obj)
         return NombresTblitemClasePropiedadSerializer(clases_propiedades, many=True).data
@@ -268,3 +277,8 @@ class TblitemSerializer(ModelSerializer):
     def get_cupones(self, obj):
         # Muestra cupones solo si se han prefetch en la consulta (control en la vista)
         return tblitemcuponSerializer(obj.cupon_relacionado.all(), many=True).data  
+    def get_items_relacionados(self, obj):
+        items_relacionados = Tblitemrelacionado.objects.filter(item=obj, activo=True)
+        return TblitemrelacionadoSerializer(items_relacionados, many=True).data
+    
+    
