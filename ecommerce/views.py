@@ -322,7 +322,7 @@ class TblusuarioViewSet(ModelViewSet):
     serializer_class = CustomUserSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombreusuario', 'nombre', 'apellidos', 'estado']
-    filterset_fields = ['nombreusuario', 'nombre', 'apellidos','departamento','provincia','distrito','telefono', 'estado', 'email_verified_at', 'direccion', 'fechacreacion', 'fechamodificacion']
+    filterset_fields = ['nombreusuario', 'nombre', 'apellidos','departamento','provincia','distrito','telefono', 'estado', 'email_verified_at', 'direccion', 'fechacreacion', 'fechamodificacion','is_staff']
 
 
 
@@ -432,8 +432,8 @@ class TblitemrelacionadoViewSet(ModelViewSet):
     queryset = Tblitemrelacionado.objects.order_by('pk')
     serializer_class = TblitemrelacionadoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
-    search_fields = ['idproduct__descripcion']
-    filterset_fields = ['idproduct_id', 'fk_id']
+    search_fields = ['item_id__descripcion']
+    filterset_fields = ['item_id', 'item_relacionado_id']
 
 
 
