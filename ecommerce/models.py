@@ -38,6 +38,26 @@ class Marca(models.Model):
     class Meta:
         db_table = 'Marca'
         
+
+class Tblcategoria(models.Model):
+    activo = models.BooleanField(default = True)
+    id = models.BigAutoField(primary_key=True)
+    nombre = models.CharField(max_length=128)
+    imagen = models.ImageField(upload_to='Categoria/', blank=True, null=True)  # This field type is a guess.
+
+    class Meta:
+        db_table = 'TblCategoria'
+
+class tblitemcategoria(models.Model):
+    activo = models.BooleanField(default = True)
+    id = models.BigAutoField(db_column='tblitemcategoria', primary_key=True)  # Field name made lowercase.
+    iditem = models.ForeignKey('Tblitem', on_delete=models.CASCADE, db_column='iditem', related_name='categoria_relacionada')
+    idcategoria = models.ForeignKey(Tblcategoria, on_delete=models.CASCADE, db_column='idcategoria')
+
+    class Meta:
+        db_table = 'tblitemcategoria'
+
+        
         
 class Tblmodelo(models.Model):
     activo = models.BooleanField(default = True)
