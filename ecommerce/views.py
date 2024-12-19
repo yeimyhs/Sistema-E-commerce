@@ -231,6 +231,20 @@ class MarcaViewSet(ModelViewSet):
     filterset_fields = ['activo', 'id', 'nombre']
 
 
+class MarcaViewSet(ModelViewSet):
+    queryset = Marca.objects.order_by('pk')
+    serializer_class = MarcaSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    search_fields = ['nombre']
+    filterset_fields = ['activo', 'id', 'nombre']
+
+class TblcategoriaViewSet(ModelViewSet):
+    queryset = Tblcategoria.objects.order_by('pk')
+    serializer_class = TblcategoriaSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    search_fields = ['nombre']
+    filterset_fields = ['activo', 'id', 'nombre']
+
 class TblmodeloViewSet(ModelViewSet):
     queryset = Tblmodelo.objects.order_by('pk')
     serializer_class = TblmodeloSerializer
@@ -446,6 +460,15 @@ class TblitemrelacionadoViewSet(ModelViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['item_id__descripcion']
     filterset_fields = ['activo', 'item_id', 'item_relacionado_id']
+
+
+class tblitemcategoriaViewSet(ModelViewSet):
+    queryset = tblitemcategoria.objects.order_by('pk')
+    serializer_class = tblitemcategoriaSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    search_fields = ['iditem_id__descripcion']
+    filterset_fields = ['activo', 'iditem_id']
+
 
 
 

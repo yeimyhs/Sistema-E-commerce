@@ -53,6 +53,19 @@ class MarcaSerializer(ModelSerializer):
         model = Marca
         fields = '__all__'
 
+class TblcategoriaSerializer(ModelSerializer):
+
+    class Meta:
+        #depth = 1
+        model = Tblcategoria
+        fields = '__all__'
+
+class tblitemcategoriaSerializer(ModelSerializer):
+
+    class Meta:
+        #depth = 1
+        model = tblitemcategoria
+        fields = '__all__'
 
 class MonedaSerializer(ModelSerializer):
 
@@ -294,6 +307,7 @@ class NombrestblitemClaseVinculoSerializer(serializers.ModelSerializer):
         
 class TblitemSerializer(ModelSerializer):
     clases_propiedades = serializers.SerializerMethodField()
+    categorias = serializers.SerializerMethodField()
     imagenes_producto = serializers.SerializerMethodField()
     cupones = serializers.SerializerMethodField()
     items_relacionados = serializers.SerializerMethodField()
@@ -319,6 +333,10 @@ class TblitemSerializer(ModelSerializer):
     def get_cupones(self, obj):
         # Muestra cupones solo si se han prefetch en la consulta (control en la vista)
         return tblitemcuponSerializer(obj.cupon_relacionado.all(), many=True).data
+    
+    def get_categorias(self, obj):
+        # Muestra cupones solo si se han prefetch en la consulta (control en la vista)
+        return tblitemcategoriaSerializer(obj.categoria_relacionada.all(), many=True).data
 
     def get_items_relacionados(self, obj):
         items_relacionados = Tblitemrelacionado.objects.filter(item=obj, activo=True)
