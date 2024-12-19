@@ -164,6 +164,10 @@ class TipocambioSerializer(ModelSerializer):
         #depth = 1
         model = Tipocambio
         fields = '__all__'
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['moneda_detalle'] = MonedaSerializer(source='idmoneda', read_only=True)
+
 
 
 class ValoracionSerializer(ModelSerializer):

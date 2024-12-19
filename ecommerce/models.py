@@ -234,6 +234,7 @@ class Tipocambio(models.Model):
     tipocambio = models.BigIntegerField(blank=True, null=True)
     idcambio = models.BigAutoField(primary_key=True)
     idmoneda = models.ForeignKey(Moneda, models.DO_NOTHING, db_column='idmoneda', blank=True, null=True)
+    fecha = models.DateTimeField()
     fechacreacion = models.DateTimeField(auto_now_add=True)
     fechamodificacion = models.DateTimeField(auto_now=True)
     class Meta:
@@ -246,6 +247,7 @@ class Valoracion(models.Model):
     comentario = models.TextField()
     idvaloracion = models.BigAutoField(primary_key=True)
     estado = models.BigIntegerField()
+    pasarela = models.BooleanField()
     telefono = models.BigIntegerField(blank=True, null=True)
     idproduct = models.ForeignKey(Tblitem, models.DO_NOTHING, db_column='idproduct', blank=True, null=True)
     iduser = models.ForeignKey(settings.AUTH_USER_MODEL ,models.DO_NOTHING, db_column='idUser', blank=True, null=True)  # Field name made lowercase.
