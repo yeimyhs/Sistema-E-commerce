@@ -284,7 +284,13 @@ class TbldetallepedidoSerializer(ModelSerializer):
         model = Tbldetallepedido
         fields = '__all__'
         
-        
+class TblreclaisionSerializer(ModelSerializer):
+
+    class Meta:
+        #depth = 1
+        model = Tblreclamacion
+        fields = '__all__'
+
 class TblmodeloSerializer(ModelSerializer):
     marca_detalle = MarcaSerializer(source='idmarca', read_only=True)
     class Meta:

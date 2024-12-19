@@ -260,6 +260,66 @@ class Tipocambio(models.Model):
     class Meta:
         db_table = 'TipoCambio'
 
+class Tblsede(models.Model):
+    activo = models.BooleanField(default = True)
+    id = models.BigAutoField(primary_key=True)
+    nombre = models.CharField(max_length=128)
+    class Meta:
+        db_table = 'Tblsede'
+
+class Tblreclamacion(models.Model):
+    TIPOS_ID = [
+        ('DNI', 'DNI'),
+        ('RUC', 'RUC')
+    ]
+
+    tipoid = models.CharField(
+        max_length=25,  # Elige un valor adecuado para los códigos más largos
+        choices=TIPOS_ID
+    )
+    nroid = models.BigIntegerField()
+    idsede = models.ForeignKey(Tblsede, models.DO_NOTHING, blank=True, null=True)
+    
+    email = models.EmailField(verbose_name="Correo Electrónico")
+    nombre = models.CharField(max_length=100, verbose_name="Nombre")
+    apellido_paterno = models.CharField(max_length=100, verbose_name="Apellido Paterno")
+    apellido_materno = models.CharField(max_length=100, verbose_name="Apellido Materno")
+    telefono = models.CharField(max_length=20, verbose_name="Celular o Teléfono")
+    departamento = models.CharField(max_length=100, verbose_name="Departamento")
+    provincia = models.CharField(max_length=100, verbose_name="Provincia")
+    distrito = models.CharField(max_length=100, verbose_name="Distrito")
+    direccion = models.TextField(verbose_name="Dirección")
+    TIPO_BIEN_CHOICES = [
+        ('PRODUCTO', 'Producto'),
+        ('SERVICIO', 'Servicio'),
+    ]
+    tipo_bien = models.CharField(
+        max_length=10,
+        choices=TIPO_BIEN_CHOICES,
+        verbose_name="Tipo de Bien Contratado"
+    )
+    numero_pedido = models.CharField(max_length=50, verbose_name="Número de Pedido", blank=True, null=True)
+    monto_pedido = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Monto del Pedido")
+    descripcion_bien = models.TextField(verbose_name="Descripción del Bien Contratado")
+    TIPO_RECLAMO_CHOICES = [
+        ('RECLAMO', 'Reclamo'),
+        ('QUEJA', 'Queja'),
+    ]
+
+    tipo_reclamo = models.CharField(
+        max_length=10,
+        choices=TIPO_RECLAMO_CHOICES,
+        verbose_name="Tipo de Reclamo"
+    )
+    descripcion_reclamo = models.TextField(verbose_name="Descripción del Reclamo o Queja")
+    pedido_consumidor = models.TextField(verbose_name="Pedido del Consumidor")
+
+
+    fechacreacion = models.DateTimeField(auto_now_add=True)
+    fechamodificacion = models.DateTimeField(auto_now=True)
+    activo = models.BooleanField(default = True)
+    
+
 
 class Valoracion(models.Model):
     activo = models.BooleanField(default = True)
