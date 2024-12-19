@@ -231,6 +231,15 @@ class MarcaViewSet(ModelViewSet):
     filterset_fields = ['activo', 'id', 'nombre']
 
 
+class TblreclamacionViewSet(ModelViewSet):
+    queryset = Tblreclamacion.objects.order_by('pk')
+    serializer_class = TblreclaisionSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    search_fields = ['nombre']
+    filterset_fields = '__all__'
+
+
+
 class MarcaViewSet(ModelViewSet):
     queryset = Marca.objects.order_by('pk')
     serializer_class = MarcaSerializer
