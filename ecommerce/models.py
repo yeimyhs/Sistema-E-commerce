@@ -19,8 +19,10 @@ class Cupon(models.Model):
     activo = models.BooleanField(default = True)
     idcupon = models.BigAutoField(db_column='idCupon', primary_key=True)  # Field name made lowercase.
     cantidaddescuento = models.FloatField()
-    descripcion = models.TextField(blank=True, null=True)
+    codigo = models.CharField(max_length=128)
     fechavigencia = models.DateTimeField(blank=True, null=True)
+    fechacaducacion = models.DateTimeField(blank=True, null=True)
+    
     estado = models.IntegerField()
     fechacreacion = models.DateTimeField(auto_now_add=True)
     fechamodificacion = models.DateTimeField(auto_now=True)
@@ -43,7 +45,9 @@ class Tblcategoria(models.Model):
     activo = models.BooleanField(default = True)
     id = models.BigAutoField(primary_key=True)
     nombre = models.CharField(max_length=128)
-    imagen = models.ImageField(upload_to='Categoria/', blank=True, null=True)  # This field type is a guess.
+    
+    #imagen = models.ImageField(upload_to='Categoria/', blank=True, null=True)  # This field type is a guess.
+    imagen = models.FileField(upload_to='iconoProiedad/', blank=True, null=True)
 
     class Meta:
         db_table = 'TblCategoria'
@@ -140,7 +144,8 @@ class Tblnoticia(models.Model):
     estado = models.IntegerField()
     idnoticia = models.BigAutoField(db_column='idNoticia', primary_key=True)  # Field name made lowercase.
     titulo = models.CharField(max_length=225)
-    imagennoticia = models.TextField(db_column='imagenNoticia')  # Field name made lowercase. This field type is a guess.
+    imagennoticia = models.ImageField(upload_to='imagenNoticia/', blank=True, null=True)
+# Field name made lowercase. This field type is a guess.
     descripcion = models.TextField()
     fechapublicacion = models.DateTimeField()
     
@@ -264,6 +269,13 @@ class Tblsede(models.Model):
     activo = models.BooleanField(default = True)
     id = models.BigAutoField(primary_key=True)
     nombre = models.CharField(max_length=128)
+    direccion = models.TextField()
+    telefono = models.CharField(max_length=20, verbose_name="Celular o Teléfono")
+
+    email = models.EmailField(verbose_name="Correo Electrónico")
+    imagen = models.ImageField(upload_to='imagenessede/',blank=True, null=True) # This field type is a guess.
+
+    
     class Meta:
         db_table = 'Tblsede'
 
@@ -318,7 +330,8 @@ class Tblreclamacion(models.Model):
     fechacreacion = models.DateTimeField(auto_now_add=True)
     fechamodificacion = models.DateTimeField(auto_now=True)
     activo = models.BooleanField(default = True)
-    
+    estado = models.IntegerField(default = 0)
+    comentario = models.TextField(blank=True, null=True)
 
 
 class Valoracion(models.Model):
