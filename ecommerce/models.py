@@ -256,7 +256,7 @@ class CustomUser(AbstractUser):
 
 class Tipocambio(models.Model):
     activo = models.BooleanField(default = True)
-    tipocambio = models.BigIntegerField(blank=True, null=True)
+    tipocambio = models.DecimalField(max_digits=22, decimal_places=22,blank=True, null=True)
     idcambio = models.BigAutoField(primary_key=True)
     idmoneda = models.ForeignKey(Moneda, models.DO_NOTHING, db_column='idmoneda', blank=True, null=True)
     fecha = models.DateTimeField()
