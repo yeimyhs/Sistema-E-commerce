@@ -333,6 +333,9 @@ class TblnoticiaViewSet(ModelViewSet):
     filterset_fields = ['activo', 'idnoticia', 'descripcion', 'estado', 'fechacreacion', 'fechamodificacion']
 
 
+class TblsedeViewSet(ModelViewSet):
+    queryset = Tblsede.objects.order_by('pk')
+    serializer_class = TblsedeSerializer
 
 class TblpedidoViewSet(ModelViewSet):
     queryset = Tblpedido.objects.order_by('pk')

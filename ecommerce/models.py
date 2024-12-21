@@ -444,7 +444,7 @@ class Tbldetallepedido(models.Model):
 class Administracion(models.Model):
     activo = models.BooleanField(default = True)
     id = models.BigAutoField(primary_key=True)
-    nombreempresa = models.BigIntegerField()
+    nombreempresa = models.CharField(max_length=128)
     ruc = models.BigIntegerField()
     telefono = models.BigIntegerField()
     igv = models.BigIntegerField()
