@@ -25,6 +25,7 @@ urlpatterns = [
 router.register(r'administracion', views.AdministracionViewSet)
 router.register(r'cupon', views.CuponViewSet)
 router.register(r'marca', views.MarcaViewSet)
+router.register(r'sede', views.TblsedeViewSet)
 router.register(r'tblreclamacion', views.TblreclamacionViewSet)
 router.register(r'tblcategoria', views.TblcategoriaViewSet)
 router.register(r'tblmodelo', views.TblmodeloViewSet)
