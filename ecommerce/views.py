@@ -296,34 +296,123 @@ from .filters import TblitemclasepropiedadFilter
 from .filters import *
 from rest_framework import filters
 
+
+from django.db import transaction
+from django.core.exceptions import ValidationError
 class TblitemViewSet(ModelViewSet):
     queryset = Tblitem.objects.prefetch_related(
         'clases_propiedades',
         'clases_propiedades__idclase',
-        'clases_propiedades__idpropiedad' # Prefetch para las propiedades
+        'clases_propiedades__idpropiedad'
     ).all()
     serializer_class = TblitemSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend,DateTimeIntervalFilter]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
     filterset_class = TblitemFilter
+
     
-    # Agrega campos relacionados para la búsqueda
-    search_fields = [
-        'codigosku',  # Campo directo de Tblitem
-        'descripcion',  # Campo directo de Tblitem
-        'clases_propiedades__idclase__nombre',  # Nombre de la clase relacionada
-        'clases_propiedades__idpropiedad__nombre'  # Nombre de la propiedad relacionada
-    ]
-    def get_serializer_context(self):
-        return {'request': self.request}
+    @action(detail=False, methods=['post'], url_path='upload-multiple')
+    @transaction.atomic
+    def upload_multiple(self, request):
+        """
+        Vista personalizada para crear un item con vínculos y categorías en una operación atómica.
+        """
+        item_data = request.data.get('item', {})
+        vinculos_data = request.data.get('vinculos', [])
+        categorias_data = request.data.get('categorias', [])
+        cupones_data = request.data.get('cupones', [])
+        itemsrelacionados_data = request.data.get('itemsrelacionados', [])
+        imagenes_data = request.FILES.getlist('imagenes') 
+        
+        # Valida los datos del item
+        item_serializer = self.get_serializer(data=item_data)
+        if not item_serializer.is_valid():
+            return Response(item_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def get_queryset(self):
-        # Solo usuarios admin pueden ver los cupones completos
-        if self.request.user.is_staff:
-            return Tblitem.objects.prefetch_related('cupon_relacionado')  # Optimización
-        # Si no es admin, excluir cupones relacionados
-        return Tblitem.objects.all()
+        try:
+            with transaction.atomic():
+            # Crear el item y manejar sus relaciones
+                item = self.create_item_with_vinculos(item_serializer.validated_data, vinculos_data)
+                self.create_item_categorias(item, categorias_data)
+                self.create_item_cupones(item, cupones_data)
+                self.create_item_itemsrelacionados(item, itemsrelacionados_data) # Crear las imágenes asociadas al item
+                for imagen in imagenes_data:
+                    Tblimagenitem.objects.create(idproduct=item, imagen=imagen, estado=1)  # Puedes ajustar el estado según sea necesario
+
+                
+                return Response({
+                    "message": "Item creado con éxito.",
+                    "item": self.get_serializer(item).data,  # Serializa el item recién creado
+                }, status=status.HTTP_201_CREATED)
+                
+        except Exception as e:
+            return Response({"error": f"Error inesperado: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+
+    def create_item_with_vinculos(self, item_data, vinculos_data):
+        """
+        Crea un item y sus vínculos asociados en una operación atómica.
+        """
+        # Crear el item
+        item = Tblitem.objects.create(**item_data)
+
+        # Crear los vínculos asociados
+        vinculos = [
+            tblitemclasevinculo(
+                iditem=item,
+                idclase_id=vinculo.get("idclase"),
+                propiedad=vinculo.get("propiedad", "")
+            )
+            for vinculo in vinculos_data
+        ]
+        tblitemclasevinculo.objects.bulk_create(vinculos)
+
+        return item
+    def create_item_categorias(self, item, categorias_data):
+        """
+        Crea las categorías asociadas a un item.
+        """
+        # Crear las categorías asociadas
+        categorias = [
+            tblitemcategoria(
+                iditem=item,
+                idcategoria_id=categoria.get("idcategoria")
+            )
+            for categoria in categorias_data
+        ]
+        tblitemcategoria.objects.bulk_create(categorias)
+
+
+        
+    def create_item_cupones(self, item, cupones_data):
+        """
+        Crea los cupones asociados a un item.
+        """
+        # Crear los cupones asociados
+        cupones = [
+            tblitemcupon(
+                iditem=item,
+                idcupon_id=cupon.get("idcupon")
+            )
+            for cupon in cupones_data
+        ]
+        tblitemcupon.objects.bulk_create(cupones)
+        
+    def create_item_itemsrelacionados(self, item, itemsrelacionados_data):
+        """
+        Crea los items relacionados a un item.
+        """
+        # Crear los items relacionados asociados
+        items_relacionados = [
+            Tblitemrelacionado(
+                item=item,
+                item_relacionado_id=itemsrelacionados.get("item_relacionado")  # Asegúrate de usar _id si es un ForeignKey
+            )
+            for itemsrelacionados in itemsrelacionados_data  # Itera correctamente sobre los datos
+        ]
+        
+        # Crear en masa los registros de relaciones
+        Tblitemrelacionado.objects.bulk_create(items_relacionados)
 
 class TblnoticiaViewSet(ModelViewSet):
     queryset = Tblnoticia.objects.order_by('pk')

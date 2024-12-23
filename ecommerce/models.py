@@ -16,7 +16,7 @@ from django.contrib.auth.models import AbstractUser, BaseUserManager
 
 
 class Cupon(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     idcupon = models.BigAutoField(db_column='idCupon', primary_key=True)  # Field name made lowercase.
     cantidaddescuento = models.FloatField()
     codigo = models.CharField(max_length=128)
@@ -32,7 +32,7 @@ class Cupon(models.Model):
 
 #------------------------------------------------------------------
 class Marca(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     id = models.BigAutoField(primary_key=True)
     nombre = models.CharField(max_length=128)
     imagen = models.ImageField(upload_to='marca/', blank=True, null=True)  # This field type is a guess.
@@ -42,7 +42,7 @@ class Marca(models.Model):
         
 
 class Tblcategoria(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     id = models.BigAutoField(primary_key=True)
     nombre = models.CharField(max_length=128)
     
@@ -53,7 +53,7 @@ class Tblcategoria(models.Model):
         db_table = 'TblCategoria'
 
 class tblitemcategoria(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     id = models.BigAutoField(db_column='tblitemcategoria', primary_key=True)  # Field name made lowercase.
     iditem = models.ForeignKey('Tblitem', on_delete=models.CASCADE, db_column='iditem', related_name='categoria_relacionada')
     idcategoria = models.ForeignKey(Tblcategoria, on_delete=models.CASCADE, db_column='idcategoria')
@@ -64,7 +64,7 @@ class tblitemcategoria(models.Model):
         
         
 class Tblmodelo(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     id = models.BigAutoField(primary_key=True)
     nombre = models.CharField(max_length=128)
     idmarca = models.ForeignKey(Marca, models.DO_NOTHING, db_column='idmarca', blank=True, null=True)
@@ -74,7 +74,7 @@ class Tblmodelo(models.Model):
 
 
 class Moneda(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     idmoneda = models.BigAutoField(primary_key=True)
     nombre = models.CharField(max_length=128)
     estado = models.IntegerField()
@@ -86,7 +86,7 @@ class Moneda(models.Model):
 
 
 class Promocion(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     idpromocion = models.BigAutoField(primary_key=True)
     imagenpromocion = models.ImageField(upload_to='promocion/')  # Field name made lowercase. This field type is a guess.
     estado = models.IntegerField()
@@ -98,7 +98,7 @@ class Promocion(models.Model):
 
 
 class Tblcarrito(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     idusuario = models.OneToOneField(settings.AUTH_USER_MODEL, models.DO_NOTHING, db_column='idUsuario', primary_key=True)  # Field name made lowercase.
     preciototal = models.TextField(blank=True, null=True)  # This field type is a guess.
 
@@ -107,7 +107,7 @@ class Tblcarrito(models.Model):
 
 
 class Tblitem(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     codigosku = models.CharField(db_column='codigoSKU', unique=True, max_length=25)  # Field name made lowercase.
     #pliegues = models.CharField(max_length=20, blank=True, null=True)
     titulo = models.CharField(max_length=128)
@@ -140,7 +140,7 @@ class Tblitem(models.Model):
 
 
 class Tblnoticia(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     estado = models.IntegerField()
     idnoticia = models.BigAutoField(db_column='idNoticia', primary_key=True)  # Field name made lowercase.
     titulo = models.CharField(max_length=225)
@@ -157,7 +157,7 @@ class Tblnoticia(models.Model):
 
 
 class Tblpedido(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     idpedido = models.BigAutoField(primary_key=True)
     idcliente = models.ForeignKey(settings.AUTH_USER_MODEL, models.DO_NOTHING, db_column='idCliente')  # Field name made lowercase.
     subtotal = models.TextField()  # This field type is a guess.
@@ -176,7 +176,7 @@ class Tblpedido(models.Model):
 
 
 class TblCarrusel(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     id = models.BigAutoField(primary_key=True)
     imagen = models.ImageField(upload_to='slider/')
     titulo = models.CharField(max_length=225)
@@ -228,7 +228,7 @@ class CustomUser(AbstractUser):
     fechamodificacion = models.DateTimeField(auto_now=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
     imagenperfil = models.ImageField(upload_to='perfilUsuarioimagen/', blank=True, null=True)
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     
     departamento = models.CharField(max_length=128, blank=True, null=True)
     provincia = models.CharField(max_length=128, blank=True, null=True)
@@ -255,7 +255,7 @@ class CustomUser(AbstractUser):
 
 
 class Tipocambio(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     tipocambio = models.DecimalField(max_digits=22, decimal_places=22,blank=True, null=True)
     idcambio = models.BigAutoField(primary_key=True)
     idmoneda = models.ForeignKey(Moneda, models.DO_NOTHING, db_column='idmoneda', blank=True, null=True)
@@ -266,7 +266,7 @@ class Tipocambio(models.Model):
         db_table = 'TipoCambio'
 
 class Tblsede(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     id = models.BigAutoField(primary_key=True)
     nombre = models.CharField(max_length=128)
     direccion = models.TextField()
@@ -329,13 +329,13 @@ class Tblreclamacion(models.Model):
 
     fechacreacion = models.DateTimeField(auto_now_add=True)
     fechamodificacion = models.DateTimeField(auto_now=True)
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     estado = models.IntegerField(default = 0)
     comentario = models.TextField(blank=True, null=True)
 
 
 class Valoracion(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     estrellas = models.BigIntegerField(blank=True, null=True)
     comentario = models.TextField()
     idvaloracion = models.BigAutoField(primary_key=True)
@@ -351,7 +351,7 @@ class Valoracion(models.Model):
 
 
 class Tbldetallecarrito(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     idproduct = models.OneToOneField(Tblitem, models.DO_NOTHING, db_column='idproduct', primary_key=True)
     isuser = models.ForeignKey(Tblcarrito, models.DO_NOTHING, db_column='isUser')  # Field name made lowercase.
     cantidad = models.BigIntegerField()
@@ -363,7 +363,7 @@ class Tbldetallecarrito(models.Model):
 
 
 class Tblimagenitem(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     idimagen = models.BigAutoField(db_column='idImagen', primary_key=True)  # Field name made lowercase.
     idproduct = models.ForeignKey(Tblitem, models.DO_NOTHING, db_column='idproduct', blank=True, null=True)
     imagen = models.ImageField(upload_to='imagenesitem/') # This field type is a guess.
@@ -374,7 +374,7 @@ class Tblimagenitem(models.Model):
 
 
 class Tblitemclase(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     idclase = models.BigAutoField(primary_key=True)
     nombre = models.CharField(max_length=128)
 
@@ -382,7 +382,7 @@ class Tblitemclase(models.Model):
         db_table = 'tblItemClase'
 
 class Tblitempropiedad(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     idpropiedad = models.BigAutoField(primary_key=True)
     nombre = models.CharField(max_length=128)
     idclase = models.ForeignKey(Tblitemclase, models.DO_NOTHING, db_column='idclase', blank=True, null=True)
@@ -392,7 +392,7 @@ class Tblitempropiedad(models.Model):
         db_table = 'tblItemPropiedad'
         
 class tblitemclasevinculo(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     id = models.BigAutoField(db_column='Id', primary_key=True)  # Field name made lowercase.
     iditem = models.ForeignKey(Tblitem, on_delete=models.CASCADE, db_column='iditem', related_name='clases_propiedades')
     propiedad = models.CharField(max_length=225)
@@ -403,7 +403,7 @@ class tblitemclasevinculo(models.Model):
 
 
 class tblitemcupon(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     id = models.BigAutoField(db_column='Id', primary_key=True)  # Field name made lowercase.
     iditem = models.ForeignKey(Tblitem, models.DO_NOTHING, db_column='iditem', related_name='cupon_relacionado')
     idcupon = models.ForeignKey(Cupon, models.DO_NOTHING, db_column='idcupon', blank=True, null=True)
@@ -415,7 +415,7 @@ class tblitemcupon(models.Model):
 
 
 class Tblitemrelacionado(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     id = models.BigAutoField(primary_key=True)
     item = models.ForeignKey(Tblitem, related_name='relacionados', on_delete=models.CASCADE)
     item_relacionado = models.ForeignKey(Tblitem, related_name='relacionados_por', on_delete=models.CASCADE)
@@ -430,7 +430,7 @@ class Tblitemrelacionado(models.Model):
         ]
         
 class Tbldetallepedido(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     idpedido = models.OneToOneField(Tblpedido, models.DO_NOTHING, db_column='idpedido', primary_key=True)
     idproduct = models.ForeignKey(Tblitem, models.DO_NOTHING, db_column='idproduct')
     cantidad = models.IntegerField()
@@ -442,7 +442,7 @@ class Tbldetallepedido(models.Model):
         unique_together = (('idpedido', 'idproduct'),)
 
 class Administracion(models.Model):
-    activo = models.BooleanField(default = True)
+    activo = models.BooleanField(default =1)
     id = models.BigAutoField(primary_key=True)
     nombreempresa = models.CharField(max_length=128)
     ruc = models.BigIntegerField()
