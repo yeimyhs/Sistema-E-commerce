@@ -302,8 +302,8 @@ from django.core.exceptions import ValidationError
 class TblitemViewSet(ModelViewSet):
     queryset = Tblitem.objects.prefetch_related(
         'clases_propiedades',
-        'clases_propiedades__idclase',
-        'clases_propiedades__idpropiedad'
+        'clases_propiedades__idclase'
+       # 'clases_propiedades__propiedad'
     ).all()
     serializer_class = TblitemSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
