@@ -316,7 +316,7 @@ class NombrestblitemClaseVinculoSerializer(serializers.ModelSerializer):
     class Meta:
         #depth = 1
         model = tblitemclasevinculo
-        fields = ['activo','clase_nombre', 'propiedad'] 
+        fields = ['id','activo','clase_nombre', 'propiedad'] 
         
 class TblitemSerializer(ModelSerializer):
     clases_propiedades = serializers.SerializerMethodField()
