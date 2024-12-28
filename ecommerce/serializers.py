@@ -355,3 +355,35 @@ class TblitemSerializer(ModelSerializer):
         items_relacionados = Tblitemrelacionado.objects.filter(item=obj, activo=True)
         return TblitemrelacionadoSerializer(items_relacionados, many=True).data
     
+
+
+
+
+from rest_framework import serializers
+
+class VinculoSerializer(serializers.Serializer):
+    idclase = serializers.IntegerField()
+    propiedad = serializers.CharField(required=False, allow_blank=True)
+
+class CategoriaSerializer(serializers.Serializer):
+    idcategoria = serializers.IntegerField()
+
+class CuponSerializer(serializers.Serializer):
+    idcupon = serializers.IntegerField()
+
+class ItemRelacionadoSerializer(serializers.Serializer):
+    item_relacionado = serializers.IntegerField()
+
+from rest_framework import serializers
+
+class TblitemTestSerializer(serializers.Serializer):
+    item = serializers.JSONField()
+    vinculos = serializers.CharField(required=False, allow_blank=True)
+    categorias = serializers.CharField(required=False, allow_blank=True)
+    cupones = serializers.CharField(required=False, allow_blank=True)
+    itemsrelacionados = serializers.CharField(required=False, allow_blank=True)
+    imagenes = serializers.ListField(
+        child=serializers.ImageField(),
+        required=False
+    )
+    imagenprincipal = serializers.ImageField(required=False)

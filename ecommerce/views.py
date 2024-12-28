@@ -310,45 +310,56 @@ class TblitemViewSet(ModelViewSet):
     filterset_class = TblitemFilter
 
     
-    @action(detail=False, methods=['post'], url_path='upload-multiple')
+    @action(detail=False, methods=['post'], url_path='upload-multiple', serializer_class=TblitemTestSerializer)
     @transaction.atomic
     def upload_multiple(self, request):
-        """
-        Vista personalizada para crear un item con vínculos y categorías en una operación atómica.
-        """
-        item_data = request.data.get('item', {})
-        vinculos_data = request.data.get('vinculos', [])
-        categorias_data = request.data.get('categorias', [])
-        cupones_data = request.data.get('cupones', [])
-        itemsrelacionados_data = request.data.get('itemsrelacionados', [])
-        imagenes_data = request.FILES.getlist('imagenes') 
-        
-        # Valida los datos del item
-        item_serializer = self.get_serializer(data=item_data)
-        if not item_serializer.is_valid():
-            return Response(item_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+
+        # Desempaqueta los datos de entrada
+        item_data = validated_data.get('item', {})
+        vinculos_data = json.loads(validated_data.get('vinculos', '[]'))
+        categorias_data = json.loads(validated_data.get('categorias', '[]'))
+        cupones_data = json.loads(validated_data.get('cupones', '[]'))
+        itemsrelacionados_data = json.loads(validated_data.get('itemsrelacionados', '[]'))
+        imagenes_data = validated_data.get('imagenes', [])
+        imagen_principal = validated_data.get('imagenprincipal', None)  # Asignado el campo 'imagenprincipal' para la imagen principal
 
         try:
             with transaction.atomic():
-            # Crear el item y manejar sus relaciones
-                item = self.create_item_with_vinculos(item_serializer.validated_data, vinculos_data)
+                # Crear el item y manejar relaciones
+                item_data_dict = item_data.copy()  # Hacer una copia para agregar la imagen principal
+
+                # Si hay una imagen principal, agregarla a los datos del item
+                if imagen_principal:
+                    item_data_dict['imagenprincipal'] = imagen_principal  # Asignar la imagen principal
+
+                # Crear el item con los datos (incluyendo imagen principal)
+                item = self.create_item_with_vinculos(item_data_dict, vinculos_data)
                 self.create_item_categorias(item, categorias_data)
                 self.create_item_cupones(item, cupones_data)
-                self.create_item_itemsrelacionados(item, itemsrelacionados_data) # Crear las imágenes asociadas al item
-                for imagen in imagenes_data:
-                    Tblimagenitem.objects.create(idproduct=item, imagen=imagen, estado=1)  # Puedes ajustar el estado según sea necesario
+                self.create_item_itemsrelacionados(item, itemsrelacionados_data)
 
-                
+                # Procesar imágenes adicionales
+                for imagen in imagenes_data:
+                    Tblimagenitem.objects.create(
+                        idproduct=item,
+                        imagen=imagen,
+                        estado=1  # Ajusta según tu lógica
+                    )
+
+                # Serializa el item creado (usando el serializer correcto para la respuesta)
+                item_serializer = TblitemSerializer(item)
+
                 return Response({
                     "message": "Item creado con éxito.",
-                    "item": self.get_serializer(item).data,  # Serializa el item recién creado
+                    "item": item_serializer.data,  # Serializa el item recién creado
                 }, status=status.HTTP_201_CREATED)
-                
         except Exception as e:
             return Response({"error": f"Error inesperado: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-
+    
+    
     def create_item_with_vinculos(self, item_data, vinculos_data):
         """
         Crea un item y sus vínculos asociados en una operación atómica.
@@ -413,6 +424,110 @@ class TblitemViewSet(ModelViewSet):
         
         # Crear en masa los registros de relaciones
         Tblitemrelacionado.objects.bulk_create(items_relacionados)
+
+
+
+from rest_framework.viewsets import ViewSet
+
+class TblitemUploadViewSet(ViewSet):
+    @transaction.atomic
+    def create(self, request):
+        serializer = TblitemTestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+
+        item_data = validated_data.get('item', {})
+        vinculos_data = validated_data.get('vinculos', [])
+        categorias_data = validated_data.get('categorias', [])
+        cupones_data = validated_data.get('cupones', [])
+        itemsrelacionados_data = validated_data.get('itemsrelacionados', [])
+
+        try:
+            with transaction.atomic():
+                # Lógica de creación
+                return Response({
+                    "message": "Item creado con éxito.",
+                }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({"error": f"Error inesperado: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.http import HttpResponse
+from .models import Tblitem
+from openpyxl import load_workbook
+from django.db import transaction
+
+def upload_xlsx(request):
+    if request.method == "POST":
+        file = request.FILES.get('file')
+        if not file.name.endswith('.xlsx'):
+            messages.error(request, "El archivo debe ser formato .xlsx")
+            return redirect('upload_xlsx')
+
+        try:
+            wb = load_workbook(file)
+            sheet = wb.active
+
+            items_to_save = []
+            for row in sheet.iter_rows(min_row=2, values_only=True):  # Asume que la primera fila tiene encabezados
+                codigosku, titulo, stock, descripcion, destacado, agotado, nuevoproducto, precionormal, fechapublicacion = row[:9]
+                
+                item = Tblitem(
+                    codigosku=codigosku,
+                    titulo=titulo,
+                    stock=stock,
+                    descripcion=descripcion,
+                    destacado=bool(destacado),
+                    agotado=bool(agotado),
+                    nuevoproducto=bool(nuevoproducto),
+                    precionormal=precionormal,
+                    fechapublicacion=fechapublicacion,
+                    estado=1  # Suponiendo un valor predeterminado para estado
+                )
+                items_to_save.append(item)
+
+            with transaction.atomic():
+                Tblitem.objects.bulk_create(items_to_save)
+
+            messages.success(request, "Datos subidos exitosamente.")
+        except Exception as e:
+            messages.error(request, f"Error al procesar el archivo: {e}")
+        return redirect('upload_xlsx')
+
+    return render(request, 'upload_xlsx.html')
+
+def download_template(request):
+    # Generar la plantilla
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Plantilla"
+    
+    # Encabezados
+    headers = [
+        "codigosku", "titulo", "stock", "descripcion", 
+        "destacado (1 o 0)", "agotado (1 o 0)", 
+        "nuevoproducto (1 o 0)", "precionormal", "fechapublicacion (YYYY-MM-DD)"
+    ]
+    ws.append(headers)
+
+    # Ejemplo de datos
+    example_data = [
+        "SKU001", "Producto A", 10, "Descripción A", 
+        1, 0, 1, 100.00, "2024-01-01"
+    ]
+    ws.append(example_data)
+
+    # Configurar la respuesta para descargar el archivo
+    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response['Content-Disposition'] = 'attachment; filename=plantilla_items.xlsx'
+    wb.save(response)
+    return response
+
+
+
+
 
 class TblnoticiaViewSet(ModelViewSet):
     queryset = Tblnoticia.objects.order_by('pk')
