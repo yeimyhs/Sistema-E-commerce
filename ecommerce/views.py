@@ -96,6 +96,7 @@ class ClasesYPropiedadesView(APIView):
             propiedades_list = [{ "nombre": v['propiedad']} for v in vinculos]
 
             clases_propiedades.append({
+                "id": clase.id,
                 "idclase": clase.idclase,
                 "clase": clase.nombre,
                 "propiedades": propiedades_list
