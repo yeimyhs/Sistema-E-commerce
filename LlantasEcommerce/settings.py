@@ -51,15 +51,15 @@ INSTALLED_APPS = [
 ]
 CORS_ALLOW_ALL_ORIGINS = True
 AUTH_USER_MODEL = 'ecommerce.CustomUser'
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://190.237.97.231:3000",
-    "http://servicesgrupoiap.ddns.net:3000",
-    "http://190.237.97.231:81",
-    "http://servicesgrupoiap.ddns.net:81",
+#CORS_ALLOWED_ORIGINS = [
+#    "http://localhost:3000",
+#    "http://127.0.0.1:3000",
+#    "http://190.237.97.231:3000",
+#    "http://servicesgrupoiap.ddns.net:3000",
+#    "http://190.237.97.231:81",
+#    "http://servicesgrupoiap.ddns.net:81",
     
-]
+#]
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ('knox.auth.TokenAuthentication',),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
