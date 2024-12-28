@@ -93,7 +93,7 @@ class ClasesYPropiedadesView(APIView):
             vinculos = tblitemclasevinculo.objects.filter(idclase=clase, activo=True).values('propiedad').distinct()
 
 # Construir la lista de propiedades únicas
-            propiedades_list = [{ "nombre": v['propiedad']} for v in vinculos]
+            propiedades_list = [{"nombre": v['propiedad']} for v in vinculos]
 
             clases_propiedades.append({
                 "id": clase.pk,
