@@ -19,6 +19,17 @@ class Cupon(models.Model):
     activo = models.BooleanField(default =1)
     idcupon = models.BigAutoField(db_column='idCupon', primary_key=True)  # Field name made lowercase.
     cantidaddescuento = models.FloatField()
+    
+    TIPO_DESCUENTO_CHOICES = [
+        ('DINERO', 'Dinero'),
+        ('PORCENTAJE', 'Porcentaje'),
+    ]
+    tipocupon = models.CharField(
+        max_length=10,
+        choices=TIPO_DESCUENTO_CHOICES,
+        verbose_name="Tipo de Cupon"
+    )
+    
     codigo = models.CharField(max_length=128)
     fechavigencia = models.DateTimeField(blank=True, null=True)
     fechacaducacion = models.DateTimeField(blank=True, null=True)
@@ -256,7 +267,11 @@ class CustomUser(AbstractUser):
 
 class Tipocambio(models.Model):
     activo = models.BooleanField(default =1)
-    tipocambio = models.DecimalField(max_digits=22, decimal_places=22,blank=True, null=True)
+    #tipocambio = models.DecimalField(max_digits=22, decimal_places=22,blank=True, null=True)
+    tipocambio = models.DecimalField(
+        max_digits=20, 
+        decimal_places=2, blank=True, null=True)  # This field type is a guess.
+    
     idcambio = models.BigAutoField(primary_key=True)
     idmoneda = models.ForeignKey(Moneda, models.DO_NOTHING, db_column='idmoneda', blank=True, null=True)
     fecha = models.DateTimeField()
