@@ -584,7 +584,7 @@ class ValoracionViewSet(ModelViewSet):
     serializer_class = ValoracionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['comentario', 'estrellas']
-    filterset_fields = ['activo', 'idvaloracion', 'estrellas', 'comentario', 'estado', 'telefono', 'idproduct_id', 'fechacreacion', 'fechamodificacion']
+    filterset_fields = ['activo', 'idvaloracion', 'estrellas', 'comentario', 'estado', 'idproduct_id', 'fechacreacion', 'fechamodificacion']
 
     
 
