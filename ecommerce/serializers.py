@@ -362,18 +362,7 @@ class TblitemSerializer(ModelSerializer):
 
 from rest_framework import serializers
 
-class VinculoSerializer(serializers.Serializer):
-    idclase = serializers.IntegerField()
-    propiedad = serializers.CharField(required=False, allow_blank=True)
 
-class CategoriaSerializer(serializers.Serializer):
-    idcategoria = serializers.IntegerField()
-
-class CuponSerializer(serializers.Serializer):
-    idcupon = serializers.IntegerField()
-
-class ItemRelacionadoSerializer(serializers.Serializer):
-    item_relacionado = serializers.IntegerField()
 
 from rest_framework import serializers
 
