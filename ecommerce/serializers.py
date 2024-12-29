@@ -312,11 +312,12 @@ class TblmodeloSerializer(ModelSerializer):
 
 class NombrestblitemClaseVinculoSerializer(serializers.ModelSerializer):
     clase_nombre = serializers.CharField(source='idclase.nombre', read_only=True)
+    idclase = serializers.IntegerField(source='idclase.pk', read_only=True)
 
     class Meta:
         #depth = 1
         model = tblitemclasevinculo
-        fields = ['id','activo','clase_nombre', 'propiedad'] 
+        fields = ['id','activo','idclase','clase_nombre', 'propiedad'] 
         
 class TblitemSerializer(ModelSerializer):
     clases_propiedades = serializers.SerializerMethodField()
