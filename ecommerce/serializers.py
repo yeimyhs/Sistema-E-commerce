@@ -61,7 +61,7 @@ class TblcategoriaSerializer(ModelSerializer):
         fields = '__all__'
 
 class tblitemcategoriaSerializer(ModelSerializer):
-
+    categoria_detalle =TblcategoriaSerializer(source='idcategoria', read_only=True)
     class Meta:
         #depth = 1
         model = tblitemcategoria
