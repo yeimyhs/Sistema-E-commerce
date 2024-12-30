@@ -184,7 +184,7 @@ class TipocambioSerializer(ModelSerializer):
 
 
 class ValoracionSerializer(ModelSerializer):
-
+    user_detalle = CustomUserSerializer(source='iduser', read_only=True)
     class Meta:
         #depth = 1
         model = Valoracion
