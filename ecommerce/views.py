@@ -300,16 +300,75 @@ from rest_framework import filters
 
 from django.db import transaction
 from django.core.exceptions import ValidationError
+from django.db.models import Sum, F, DecimalField
+
 class TblitemViewSet(ModelViewSet):
     queryset = Tblitem.objects.prefetch_related(
         'clases_propiedades',
         'clases_propiedades__idclase'
-       # 'clases_propiedades__propiedad'
+        # 'clases_propiedades__propiedad'
     ).all()
     serializer_class = TblitemSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
     filterset_class = TblitemFilter
 
+    @swagger_auto_schema(
+        operation_description="Obtiene el detalle completo del ítem junto con el número de pedidos y los ingresos totales.",
+        responses={
+            200: openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "item_data": openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            #**{
+                            #    field: serializer_field.schema for field, serializer_field in TblitemSerializer().fields.items()
+                            #},
+                            "numero_pedidos": openapi.Schema(
+                                type=openapi.TYPE_INTEGER,
+                                description="Número total de pedidos en los que aparece este producto."
+                            ),
+                            "ingresos_totales": openapi.Schema(
+                                type=openapi.TYPE_NUMBER,
+                                format=openapi.FORMAT_DECIMAL,
+                                description="Ingresos totales generados por este producto (suma del precio unitario multiplicado por la cantidad)."
+                            ),
+                        },
+                    ),
+                },
+            ),
+            404: openapi.Response('Error: El ítem no existe.'),
+        },
+    )
+    @action(detail=True, methods=['get'], url_path='detalles-ventas')
+    def detalles_ventas(self, request, pk=None):
+        """
+        Obtiene el detalle completo del ítem junto con el número de pedidos y los ingresos totales.
+        """
+        try:
+            item = Tblitem.objects.get(pk=pk)
+        except Tblitem.DoesNotExist:
+            return Response({'error': 'El ítem no existe.'}, status=404)
+
+        # Filtrar los pedidos que incluyen este ítem
+        detalles_pedidos = Tbldetallepedido.objects.filter(idproduct=item)
+
+        # Cálculo del número de pedidos y los ingresos totales
+        numero_pedidos = detalles_pedidos.count()
+        ingresos_totales = detalles_pedidos.aggregate(
+            total_ingresos=Sum(F('cantidad') * F('preciunitario'), output_field=DecimalField())
+        )['total_ingresos'] or 0
+
+        # Serializar el detalle del ítem
+        item_data = self.get_serializer(item).data
+
+        # Agregar información adicional
+        item_data.update({
+            'numero_pedidos': numero_pedidos,
+            'ingresos_totales': ingresos_totales,
+        })
+
+        return Response(item_data)
     
     @action(detail=False, methods=['post'], url_path='upload-multiple', serializer_class=TblitemTestSerializer)
     @transaction.atomic
