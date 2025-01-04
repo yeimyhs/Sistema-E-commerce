@@ -473,6 +473,77 @@ class TblitemViewSet(ModelViewSet):
 
         return Response(item_data)
     
+    
+    #----------------------------------------------------------------
+  
+    
+    @action(detail=True, methods=['patch'], url_path='update-item', serializer_class=TblitemTestSerializer)
+    @transaction.atomic
+    def update_item(self, request, pk=None):
+        """
+        Actualiza parcialmente un item y sus relaciones.
+        """
+        try:
+            # Obtén el item existente por su ID (pk)
+            item = Tblitem.objects.get(pk=pk)
+
+            # Usamos el serializer para validar y actualizar parcialmente los datos
+            serializer = self.get_serializer(item, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            validated_data = serializer.validated_data
+
+            # Desempaquetar los datos de entrada
+            item_data = validated_data.get('item', {})
+            vinculos_data = json.loads(validated_data.get('vinculos', '[]'))
+            categorias_data = json.loads(validated_data.get('categorias', '[]'))
+            cupones_data = json.loads(validated_data.get('cupones', '[]'))
+            itemsrelacionados_data = json.loads(validated_data.get('itemsrelacionados', '[]'))
+            imagenes_data = validated_data.get('imagenes', [])
+            imagen_principal = validated_data.get('imagenprincipal', None)
+
+            # Actualización del item
+            item_data_dict = item_data.copy()
+
+            # Si hay una imagen principal, actualizarla
+            if imagen_principal:
+                item_data_dict['imagenprincipal'] = imagen_principal
+
+            # Actualizamos el item con los datos proporcionados
+            for field, value in item_data_dict.items():
+                setattr(item, field, value)
+            item.save()
+
+            # Actualizar las relaciones
+            self.create_item_categorias(item, categorias_data)
+            self.create_item_cupones(item, cupones_data)
+            self.create_item_itemsrelacionados(item, itemsrelacionados_data)
+
+            # Procesar las imágenes adicionales
+            for imagen in imagenes_data:
+                Tblimagenitem.objects.create(
+                    idproduct=item,
+                    imagen=imagen,
+                    estado=1  # Ajusta según tu lógica
+                )
+
+            # Serializa el item actualizado
+            item_serializer = TblitemSerializer(item)
+
+            return Response({
+                "message": "Item actualizado con éxito.",
+                "item": item_serializer.data,  # Serializa el item actualizado
+            }, status=status.HTTP_200_OK)
+
+        except Tblitem.DoesNotExist:
+            return Response({"error": "El item con el ID proporcionado no existe."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": f"Error inesperado: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+  
+  
+  
+    #---------
     @action(detail=False, methods=['post'], url_path='upload-multiple', serializer_class=TblitemTestSerializer)
     @transaction.atomic
     def upload_multiple(self, request):
@@ -588,7 +659,7 @@ class TblitemViewSet(ModelViewSet):
         # Crear en masa los registros de relaciones
         Tblitemrelacionado.objects.bulk_create(items_relacionados)
 
-
+#------------------------------------------------------------------
 
 from rest_framework.viewsets import ViewSet
 
