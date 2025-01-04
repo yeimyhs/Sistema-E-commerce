@@ -17,10 +17,29 @@ class TblitemclasepropiedadFilter(django_filters.FilterSet):
 
 from django_filters import rest_framework as filters
 
-
 class TblitemFilter(filters.FilterSet):
     clase_nombre = filters.CharFilter(field_name='clases_propiedades__idclase__nombre', lookup_expr='icontains')
     propiedad_nombre = filters.CharFilter(field_name='clases_propiedades__propiedad', lookup_expr='icontains')
+    titulo = filters.CharFilter(field_name='titulo', lookup_expr='icontains')  # Filtro por título
+    stock_min = filters.NumberFilter(field_name='stock', lookup_expr='gte')  # Filtro por stock mínimo
+    stock_max = filters.NumberFilter(field_name='stock', lookup_expr='lte')  # Filtro por stock máximo
+    destacado = filters.BooleanFilter(field_name='destacado')  # Filtro por destacado
+    agotado = filters.BooleanFilter(field_name='agotado')  # Filtro por agotado
+    nuevoproducto = filters.BooleanFilter(field_name='nuevoproducto')  # Filtro por nuevo producto
+    preciorebajado_min = filters.NumberFilter(field_name='preciorebajado', lookup_expr='gte')  # Precio rebajado mínimo
+    preciorebajado_max = filters.NumberFilter(field_name='preciorebajado', lookup_expr='lte')  # Precio rebajado máximo
+    precionormal_min = filters.NumberFilter(field_name='precionormal', lookup_expr='gte')  # Precio normal mínimo
+    precionormal_max = filters.NumberFilter(field_name='precionormal', lookup_expr='lte')  # Precio normal máximo
+    fechapublicacion_before = filters.DateFilter(field_name='fechapublicacion', lookup_expr='lte')  # Fecha publicación antes
+    fechapublicacion_after = filters.DateFilter(field_name='fechapublicacion', lookup_expr='gte')  # Fecha publicación después
+    peso_min = filters.NumberFilter(field_name='peso', lookup_expr='gte')  # Peso mínimo
+    peso_max = filters.NumberFilter(field_name='peso', lookup_expr='lte')  # Peso máximo
+    altura_min = filters.NumberFilter(field_name='altura', lookup_expr='gte')  # Altura mínima
+    altura_max = filters.NumberFilter(field_name='altura', lookup_expr='lte')  # Altura máxima
+    ancho_min = filters.NumberFilter(field_name='ancho', lookup_expr='gte')  # Ancho mínimo
+    ancho_max = filters.NumberFilter(field_name='ancho', lookup_expr='lte')  # Ancho máximo
+    profundidad_min = filters.NumberFilter(field_name='profundidad', lookup_expr='gte')  # Profundidad mínima
+    profundidad_max = filters.NumberFilter(field_name='profundidad', lookup_expr='lte')  # Profundidad máxima
 
     class Meta:
         model = Tblitem
@@ -28,7 +47,7 @@ class TblitemFilter(filters.FilterSet):
             'codigosku': ['icontains'],  # Filtro por SKU
             'descripcion': ['icontains'],  # Filtro por descripción
             'estado': ['exact'],  # Filtro por estado
-            #'idmarca': ['exact'],  # Filtro por marca
+            'idmodelo': ['exact'],  # Filtro por modelo
         }
         
 from rest_framework.filters import BaseFilterBackend 

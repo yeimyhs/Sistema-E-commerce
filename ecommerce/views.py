@@ -80,6 +80,109 @@ def create_payment(request):
     else:
         return JsonResponse({"status": "error", "message": "Método no permitido."}, status=405)
     
+    
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import requests
+from requests.auth import HTTPBasicAuth
+import json
+
+# URL del servicio externo
+
+# Credenciales
+
+@csrf_exempt
+def generate_token(request):
+    """
+    Vista para generar un token a través del servicio CreateToken.
+    "currency": "PEN",  # Ejemplo de moneda
+    "customer": {
+        "email":"ejemplo@otro.com"
+    }
+    """
+    if request.method == "POST":
+        try:
+            # Parsear el cuerpo de la solicitud
+            payload = json.loads(request.body)
+            TOKEN_URL = "https://api.micuentaweb.pe/api-payment/V4/Charge/CreateToken"
+            
+            # Enviar solicitud POST al servicio externo
+            response = requests.post(
+                TOKEN_URL,
+                auth=HTTPBasicAuth(settings.IZIPAY_USERNAME, settings.IZIPAY_PASSWORD),
+                #auth=HTTPBasicAuth(USERNAME, PASSWORD),
+                json=payload
+            )
+            
+            # Verificar el estado de la respuesta
+            if response.status_code == 200:
+                return JsonResponse(response.json(), status=200)
+            else:
+                return JsonResponse({
+                    "error": "Error al generar el token",
+                    "status_code": response.status_code,
+                    "details": response.text
+                }, status=response.status_code)
+        
+        except Exception as e:
+            # Manejar errores y retornar una respuesta apropiada
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    # Método no permitido
+    return JsonResponse({"error": "Método no permitido"}, status=405)
+
+
+@csrf_exempt
+def create_token(request):
+    """
+    Vista para la creación de un token de tarjeta.
+    """
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            url = f"{BASE_API_URL}tokens"
+            response = requests.post(url, headers=HEADERS, json=data)
+            return JsonResponse(response.json(), status=response.status_code)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    return JsonResponse({"error": "Método no permitido"}, status=405)
+
+@csrf_exempt
+def get_token(request):
+    """
+    Vista para consultar datos de un token específico.
+    """
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            url = f"{BASE_API_URL}tokens/token"
+            response = requests.post(url, headers=HEADERS, json=data)
+            return JsonResponse(response.json(), status=response.status_code)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    return JsonResponse({"error": "Método no permitido"}, status=405)
+
+@csrf_exempt
+def get_tokens_by_buyer(request):
+    """
+    Vista para consultar todos los tokens registrados para un comprador.
+    """
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            url = f"{BASE_API_URL}tokens/tokens"
+            response = requests.post(url, headers=HEADERS, json=data)
+            return JsonResponse(response.json(), status=response.status_code)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    return JsonResponse({"error": "Método no permitido"}, status=405)
+
+
+
+
+
+
+
 class ClasesYPropiedadesView(APIView):
     def get(self, request):
         # Inicializa una lista para almacenar las clases y sus propiedades
