@@ -206,3 +206,13 @@ load_dotenv()
 # Ahora puedes acceder a las variables de entorno
 IZIPAY_USERNAME = os.getenv('IZIPAY_USERNAME')
 IZIPAY_PASSWORD = os.getenv('IZIPAY_PASSWORD')
+
+
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'PATCH',  # Asegúrate de incluir PATCH
+    'PUT',
+    'DELETE',
+    'OPTIONS'
+]
