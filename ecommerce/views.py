@@ -208,47 +208,50 @@ class ClasesYPropiedadesView(APIView):
         # Retorna la respuesta
         return Response(clases_propiedades)
     
+    
+from rest_framework.pagination import PageNumberPagination
+
+class FixedPageNumberPagination(PageNumberPagination):
+    page_size = 1  # Fijamos el tamaño de página a 10
+from rest_framework.response import Response
+
 class BusquedaDinamicaViewSet(viewsets.ViewSet):
     serializer_class = TblitemSerializer
-    @swagger_auto_schema(
-        operation_description="Busca productos filtrados por combinaciones de clase y propiedad. " 
-                              "Se pueden agregar múltiples combinaciones separadas por '&'.",
-        manual_parameters=[
-            openapi.Parameter(
-                name='clase',
-                in_=openapi.IN_QUERY,
-                description="Combinaciones de clase y propiedad para filtrar los productos. "
-                            "Ejemplo: ?clase=1,propiedad=1&clase=1,propiedad=2",
-                type=openapi.TYPE_STRING,
-                required=True,
-                examples={
-                    "query": "1,propiedad=1"
-                }
-            ),
-        ],
-        responses={200: TblitemSerializer(many=True)},
-    )
-    
+    pagination_class = FixedPageNumberPagination  # Clase de paginación personalizada
+
     def list(self, request):
         query = Q()  # Inicializamos una consulta vacía
 
-        for filtro in request.query_params.getlist("clase"):
-            # Dividimos el valor en clase y propiedad
+        # Validar que el parámetro clase exista
+        clases = request.query_params.getlist("clase")
+        if not clases:
+            return Response({"detail": "El parámetro 'clase' es obligatorio."}, status=400)
+
+        # Procesar los filtros
+        for filtro in clases:
             if "propiedad=" in filtro:
                 try:
                     clase, propiedad = filtro.split(",propiedad=")
-                    # Agregamos la combinación a la consulta con OR
                     query |= Q(
-                        clases_propiedades__idclase=clase,
-                        clases_propiedades__propiedad__iexact=propiedad.strip()  # Comparación case-insensitive
+                        clases_propiedades__idclase=clase.strip(),
+                        clases_propiedades__propiedad__iexact=propiedad.strip()
                     )
                 except ValueError:
-                    continue  # Si no tiene el formato esperado, lo ignoramos
+                    continue
 
-        # Filtramos los items que cumplen con la consulta
+        # Filtrar los elementos que cumplen con los filtros
         items = Tblitem.objects.filter(query).distinct()
-        serializer = TblitemSerializer(items, many=True)
-        return Response(serializer.data)
+
+        # Paginación
+        paginator = self.pagination_class()
+        paginated_items = paginator.paginate_queryset(items, request)
+
+        # Serializar los resultados
+        serializer = TblitemSerializer(paginated_items, many=True)
+
+        # Responder con los datos paginados
+        return paginator.get_paginated_response(serializer.data)
+
 
 class LoginView(KnoxLoginView):
     permission_classes = (permissions.AllowAny,)
