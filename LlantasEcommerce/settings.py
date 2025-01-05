@@ -51,15 +51,20 @@ INSTALLED_APPS = [
 ]
 CORS_ALLOW_ALL_ORIGINS = True
 AUTH_USER_MODEL = 'ecommerce.CustomUser'
-#CORS_ALLOWED_ORIGINS = [
-#    "http://localhost:3000",
-#    "http://127.0.0.1:3000",
-#    "http://190.237.97.231:3000",
-#    "http://servicesgrupoiap.ddns.net:3000",
-#    "http://190.237.97.231:81",
-#    "http://servicesgrupoiap.ddns.net:81",
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:83",
+    "http://190.237.97.231:3000",
+    "http://servicesgrupoiap.ddns.net:3000",
+    "http://190.237.97.231:81",
+    "http://190.237.97.231:83",
+    "http://servicesgrupoiap.ddns.net:81",
+    "http://servicesgrupoiap.ddns.net:83"
     
-#]
+]
+
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ('knox.auth.TokenAuthentication',),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
@@ -67,10 +72,11 @@ REST_FRAMEWORK = {
     
 }
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',# render
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
+    
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -142,7 +148,24 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+CORS_ALLOW_METHODS = [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",  # Asegúrate de incluir PATCH
+    "DELETE",
+    "OPTIONS",
+]
 
+CORS_ALLOW_HEADERS = [
+    "Authorization",
+    "Content-Type",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+    "Access-Control-Request-Method",
+    "Access-Control-Request-Headers",
+]
 # Internationalization
 # https://docs.djangoproject.com/en/3.2/topics/i18n/
 
