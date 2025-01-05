@@ -144,7 +144,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         #depth = 1
         model = CustomUser
-        fields = ['activo',
+        fields = [
             'email', 'password', 'nombre', 'apellidos', 
             'nombreusuario','telefono','imagenperfil',
             'direccion','departamento','provincia','distrito', 'estado', 'is_staff',
@@ -165,7 +165,6 @@ class RegisterSerializer(serializers.ModelSerializer):
             telefono=validated_data.get('telefono'),
             imagenperfil=validated_data.get('imagenperfil'), 
             
-            activo=validated_data.get('activo'),
             estado=validated_data.get('estado'),
             is_staff=validated_data.get('is_staff')
         )
