@@ -371,8 +371,10 @@ class TblitemTestSerializer(serializers.Serializer):
     categorias = serializers.CharField(required=False, allow_blank=True)
     cupones = serializers.CharField(required=False, allow_blank=True)
     itemsrelacionados = serializers.CharField(required=False, allow_blank=True)
+    imagenes_eliminartodas = serializers.BooleanField(required=False, default=False)
     imagenes = serializers.ListField(
         child=serializers.ImageField(),
         required=False
     )
     imagenprincipal = serializers.ImageField(required=False)
+    idmodelo = serializers.IntegerField(required=False)

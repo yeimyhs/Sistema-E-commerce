@@ -513,77 +513,163 @@ class TblitemViewSet(ModelViewSet):
     
     #----------------------------------------------------------------
   
-    
-    @action(detail=True, methods=['patch'], url_path='update-item', serializer_class=TblitemTestSerializer)
+    @action(detail=True, methods=['patch'], url_path='update', serializer_class=TblitemTestSerializer)
     @transaction.atomic
-    def update_item(self, request, pk=None):
+    def itempartial_update(self, request, pk=None):
         """
-        Actualiza parcialmente un item y sus relaciones.
+        Actualiza parcialmente un item identificado por su ID en el URL.
         """
+        
         try:
-            # Obtén el item existente por su ID (pk)
+            # Obtener el item por medio del ID en el URL
             item = Tblitem.objects.get(pk=pk)
-
-            # Usamos el serializer para validar y actualizar parcialmente los datos
-            serializer = self.get_serializer(item, data=request.data, partial=True)
-            serializer.is_valid(raise_exception=True)
-            validated_data = serializer.validated_data
-
-            # Desempaquetar los datos de entrada
-            item_data = validated_data.get('item', {})
-            vinculos_data = json.loads(validated_data.get('vinculos', '[]'))
-            categorias_data = json.loads(validated_data.get('categorias', '[]'))
-            cupones_data = json.loads(validated_data.get('cupones', '[]'))
-            itemsrelacionados_data = json.loads(validated_data.get('itemsrelacionados', '[]'))
-            imagenes_data = validated_data.get('imagenes', [])
-            imagen_principal = validated_data.get('imagenprincipal', None)
-
-            # Actualización del item
-            item_data_dict = item_data.copy()
-
-            # Si hay una imagen principal, actualizarla
-            if imagen_principal:
-                item_data_dict['imagenprincipal'] = imagen_principal
-
-            # Actualizamos el item con los datos proporcionados
-            for field, value in item_data_dict.items():
-                setattr(item, field, value)
-            item.save()
-
-            # Actualizar las relaciones
-            self.create_item_categorias(item, categorias_data)
-            self.create_item_cupones(item, cupones_data)
-            self.create_item_itemsrelacionados(item, itemsrelacionados_data)
-
-            # Procesar las imágenes adicionales
-            for imagen in imagenes_data:
-                Tblimagenitem.objects.create(
-                    idproduct=item,
-                    imagen=imagen,
-                    estado=1  # Ajusta según tu lógica
-                )
-
-            # Serializa el item actualizado
-            item_serializer = TblitemSerializer(item)
-
-            return Response({
-                "message": "Item actualizado con éxito.",
-                "item": item_serializer.data,  # Serializa el item actualizado
-            }, status=status.HTTP_200_OK)
-
+            
         except Tblitem.DoesNotExist:
-            return Response({"error": "El item con el ID proporcionado no existe."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "El item no existe."}, status=status.HTTP_404_NOT_FOUND)
+            
+
+        # Validar los datos enviados (parciales)
+        serializer = self.get_serializer(item, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+        print("------------")    
+        
+
+        try:
+            with transaction.atomic():
+                # Actualizar campos proporcionados
+                item_data = validated_data.get('item', {})
+                for key, value in item_data.items():
+                    setattr(item, key, value)
+                item.save()
+
+                # Actualizar relaciones selectivamente
+                if 'vinculos' in validated_data:
+                    self.patch_item_vinculos(item, json.loads(validated_data.get('vinculos', '[]')))
+                if 'categorias' in validated_data:
+                    self.patch_item_categorias(item, json.loads(validated_data.get('categorias', '[]')))
+                if 'cupones' in validated_data:
+                    self.patch_item_cupones(item, json.loads(validated_data.get('cupones', '[]')))
+                if 'itemsrelacionados' in validated_data:
+                    self.patch_item_itemsrelacionados(item, json.loads(validated_data.get('itemsrelacionados', '[]')))
+
+                # Actualizar imágenes principales y adicionales
+                if 'imagenprincipal' in validated_data:
+                    item.imagenprincipal = validated_data['imagenprincipal']
+                    item.save()
+                
+                if 'idmodelo' in validated_data:
+                    try:
+                        modelo_instance = Tblmodelo.objects.get(id=validated_data['idmodelo'])
+                        item.idmodelo = modelo_instance # Asignar la instancia de Tblmodelo
+                    except Tblmodelo.DoesNotExist:
+                        raise ValueError(f"El modelo con ID {item_data['idmodelo']} no existe.") # Asignar la imagen principal
+
+
+                if 'imagenes_eliminartodas' in validated_data and validated_data['imagenes_eliminartodas']:
+    # Caso 1: Si se especifica `imagenes_eliminartodas=True`, eliminar todas las imágenes
+                    Tblimagenitem.objects.filter(idproduct=item).delete()
+
+                elif 'imagenes' in validated_data:
+                    imagenes_data = validated_data.get('imagenes', [])
+
+                    if imagenes_data:
+                        # Caso 2: Si `imagenes` contiene imágenes, eliminar las existentes y añadir las nuevas
+                        Tblimagenitem.objects.filter(idproduct=item).delete()
+                        for imagen in imagenes_data:
+                            if imagen:  # Verifica que la imagen no esté vacía
+                                Tblimagenitem.objects.create(
+                                    idproduct=item,
+                                    imagen=imagen,
+                                    estado=1  # Ajusta según la lógica de tu modelo
+                                )
+                    else:
+                        # Caso 3: Si `imagenes` está presente pero vacío, no hacer nada
+                        pass
+
+                # Serializar y responder
+                item_serializer = TblitemSerializer(item)
+                return Response({
+                    "message": "Item actualizado parcialmente con éxito.",
+                    "item": item_serializer.data
+                }, status=status.HTTP_200_OK)
+
         except Exception as e:
             return Response({"error": f"Error inesperado: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-  
+    def patch_item_vinculos(self, item, vinculos_data):
+        """
+        Actualiza los vínculos asociados a un item de forma parcial.
+        """
+        for vinculo in vinculos_data:
+            if 'id' in vinculo:  # Actualizar un vínculo existente
+                vinculo_obj = tblitemclasevinculo.objects.get(pk=vinculo['id'])
+                vinculo_obj.propiedad = vinculo.get('propiedad', vinculo_obj.propiedad)
+                vinculo_obj.save()
+            else:  # Añadir un nuevo vínculo
+                tblitemclasevinculo.objects.create(
+                    iditem=item,
+                    idclase_id=vinculo.get("idclase"),
+                    propiedad=vinculo.get("propiedad", "")
+                )
+
+
+    def patch_item_categorias(self, item, categorias_data):
+        """
+        Actualiza las categorías asociadas a un item de forma parcial.
+        """
+        for categoria in categorias_data:
+            if 'id' in categoria:  # Actualizar una categoría existente
+                categoria_obj = tblitemcategoria.objects.get(pk=categoria['id'])
+                categoria_obj.idcategoria_id = categoria.get('idcategoria', categoria_obj.idcategoria_id)
+                categoria_obj.save()
+            else:  # Añadir una nueva categoría
+                tblitemcategoria.objects.create(
+                    iditem=item,
+                    idcategoria_id=categoria.get("idcategoria")
+                )
+
+
+    def patch_item_cupones(self, item, cupones_data):
+        """
+        Actualiza los cupones asociados a un item de forma parcial.
+        """
+        for cupon in cupones_data:
+            if 'id' in cupon:  # Actualizar un cupón existente
+                cupon_obj = tblitemcupon.objects.get(pk=cupon['id'])
+                cupon_obj.idcupon_id = cupon.get('idcupon', cupon_obj.idcupon_id)
+                cupon_obj.save()
+            else:  # Añadir un nuevo cupón
+                tblitemcupon.objects.create(
+                    iditem=item,
+                    idcupon_id=cupon.get("idcupon")
+                )
+
+
+    def patch_item_itemsrelacionados(self, item, itemsrelacionados_data):
+        """
+        Actualiza los items relacionados a un item de forma parcial.
+        """
+        for itemsrelacionados in itemsrelacionados_data:
+            if 'id' in itemsrelacionados:  # Actualizar un item relacionado existente
+                relacionado_obj = Tblitemrelacionado.objects.get(pk=itemsrelacionados['id'])
+                relacionado_obj.item_relacionado_id = itemsrelacionados.get("item_relacionado", relacionado_obj.item_relacionado_id)
+                relacionado_obj.save()
+            else:  # Añadir un nuevo item relacionado
+                Tblitemrelacionado.objects.create(
+                    item=item,
+                    item_relacionado_id=itemsrelacionados.get("item_relacionado")
+                )
+
+    
   
   
     #---------
     @action(detail=False, methods=['post'], url_path='upload-multiple', serializer_class=TblitemTestSerializer)
     @transaction.atomic
     def upload_multiple(self, request):
+        
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
@@ -596,6 +682,7 @@ class TblitemViewSet(ModelViewSet):
         itemsrelacionados_data = json.loads(validated_data.get('itemsrelacionados', '[]'))
         imagenes_data = validated_data.get('imagenes', [])
         imagen_principal = validated_data.get('imagenprincipal', None)  # Asignado el campo 'imagenprincipal' para la imagen principal
+        idmodelo = validated_data.get('idmodelo', None)  # Asignado el campo 'imagenprincipal' para la imagen principal
 
         try:
             with transaction.atomic():
@@ -605,6 +692,12 @@ class TblitemViewSet(ModelViewSet):
                 # Si hay una imagen principal, agregarla a los datos del item
                 if imagen_principal:
                     item_data_dict['imagenprincipal'] = imagen_principal  # Asignar la imagen principal
+                if idmodelo:
+                    try:
+                        modelo_instance = Tblmodelo.objects.get(id=idmodelo)
+                        item_data_dict['idmodelo'] = modelo_instance  # Asignar la instancia de Tblmodelo
+                    except Tblmodelo.DoesNotExist:
+                        raise ValueError(f"El modelo con ID {item_data_dict['idmodelo']} no existe.") # Asignar la imagen principal
 
                 # Crear el item con los datos (incluyendo imagen principal)
                 item = self.create_item_with_vinculos(item_data_dict, vinculos_data)
