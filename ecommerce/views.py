@@ -395,6 +395,40 @@ class TblcarritoViewSet(ModelViewSet):
     search_fields = ['idusuario__nombreusuario', 'preciototal']
     filterset_fields = ['activo', 'idusuario_id', 'preciototal']
 
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from requests.auth import HTTPBasicAuth
+import base64
+class AuthCredentialsView(APIView):
+    """
+    Servicio para generar el encabezado 'Authorization' con la autenticación básica.
+    """
+
+    def get(self, request, *args, **kwargs):
+        # Obtener las credenciales desde la configuración de Django o desde los parámetros
+        username = settings.IZIPAY_USERNAME  # O puedes recibirlo como parámetro en la URL si es necesario
+        password = settings.IZIPAY_PASSWORD  # O puedes recibirlo como parámetro también
+
+        # Concatenar el nombre de usuario y la contraseña con un ':' entre ellos
+        user_pass_string = f"{username}:{password}"
+
+        # Codificar en base64
+        base64_encoded = base64.b64encode(user_pass_string.encode('utf-8')).decode('utf-8')
+
+        # Construir el encabezado de autorización
+        auth_header = f"Basic {base64_encoded}"
+
+        # Retornar la respuesta con el encabezado generado
+        return Response(
+            data={
+                "authorization_header": auth_header
+            },
+            status=status.HTTP_200_OK
+        )
+
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from .models import Tblitem
