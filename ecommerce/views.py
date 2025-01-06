@@ -532,7 +532,6 @@ class TblitemViewSet(ModelViewSet):
         serializer = self.get_serializer(item, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        print("------------")    
         
 
         try:
@@ -547,10 +546,12 @@ class TblitemViewSet(ModelViewSet):
                 if 'vinculos' in validated_data:
                     self.patch_item_vinculos(item, json.loads(validated_data.get('vinculos', '[]')))
                 if 'categorias' in validated_data:
-                    self.patch_item_categorias(item, json.loads(validated_data.get('categorias', '[]')))
+                    cate= json.loads(validated_data.get('categorias', '[]'))
+                    self.patch_item_categorias(item, cate)
                 if 'cupones' in validated_data:
                     self.patch_item_cupones(item, json.loads(validated_data.get('cupones', '[]')))
                 if 'itemsrelacionados' in validated_data:
+
                     self.patch_item_itemsrelacionados(item, json.loads(validated_data.get('itemsrelacionados', '[]')))
 
                 # Actualizar imágenes principales y adicionales
@@ -617,53 +618,117 @@ class TblitemViewSet(ModelViewSet):
 
     def patch_item_categorias(self, item, categorias_data):
         """
-        Actualiza las categorías asociadas a un item de forma parcial.
+        Actualiza las categorías asociadas a un ítem de forma parcial.
+        Elimina las relaciones existentes que no están en los datos enviados.
         """
+        # Obtener las relaciones actuales desde la base de datos
+        relaciones_actuales = tblitemcategoria.objects.filter(iditem=item)
+        relaciones_por_id = {rel.id: rel for rel in relaciones_actuales}
+        relaciones_por_categoria = {rel.idcategoria_id: rel for rel in relaciones_actuales}
+
+        # Rastrear las relaciones que deben conservarse
+        categorias_a_conservar = set()
+
         for categoria in categorias_data:
-            if 'id' in categoria:  # Actualizar una categoría existente
-                categoria_obj = tblitemcategoria.objects.get(pk=categoria['id'])
-                categoria_obj.idcategoria_id = categoria.get('idcategoria', categoria_obj.idcategoria_id)
-                categoria_obj.save()
-            else:  # Añadir una nueva categoría
-                tblitemcategoria.objects.create(
-                    iditem=item,
-                    idcategoria_id=categoria.get("idcategoria")
-                )
+            if 'id' in categoria:  # Relación existente enviada por ID
+                if categoria['id'] in relaciones_por_id:
+                    relacion = relaciones_por_id[categoria['id']]
+                    # Actualizar solo si los datos han cambiado
+                    if relacion.idcategoria_id != categoria.get('idcategoria'):
+                        relacion.idcategoria_id = categoria.get('idcategoria')
+                        relacion.save()
+                    categorias_a_conservar.add(relacion.id)
+
+            elif 'idcategoria' in categoria:  # Relación nueva o existente enviada por categoría
+                if categoria['idcategoria'] in relaciones_por_categoria:
+                    relacion = relaciones_por_categoria[categoria['idcategoria']]
+                    categorias_a_conservar.add(relacion.id)
+                else:
+                    nueva_relacion = tblitemcategoria.objects.create(
+                        iditem=item,
+                        idcategoria_id=categoria['idcategoria']
+                    )
+                    categorias_a_conservar.add(nueva_relacion.id)
+        
+        # Eliminar relaciones no enviadas
+        relaciones_actuales.exclude(id__in=categorias_a_conservar).delete()
 
 
     def patch_item_cupones(self, item, cupones_data):
         """
-        Actualiza los cupones asociados a un item de forma parcial.
+        Actualiza los cupones asociados a un ítem de forma parcial.
+        Elimina las relaciones existentes que no están en los datos enviados.
         """
+        # Obtener las relaciones actuales desde la base de datos
+        relaciones_actuales = tblitemcupon.objects.filter(iditem=item)
+        relaciones_por_id = {rel.id: rel for rel in relaciones_actuales}
+        relaciones_por_cupon = {rel.idcupon_id: rel for rel in relaciones_actuales}
+
+        # Rastrear las relaciones que deben conservarse
+        cupones_a_conservar = set()
+
         for cupon in cupones_data:
-            if 'id' in cupon:  # Actualizar un cupón existente
-                cupon_obj = tblitemcupon.objects.get(pk=cupon['id'])
-                cupon_obj.idcupon_id = cupon.get('idcupon', cupon_obj.idcupon_id)
-                cupon_obj.save()
-            else:  # Añadir un nuevo cupón
-                tblitemcupon.objects.create(
-                    iditem=item,
-                    idcupon_id=cupon.get("idcupon")
-                )
+            if 'id' in cupon:  # Relación existente enviada por ID
+                if cupon['id'] in relaciones_por_id:
+                    relacion = relaciones_por_id[cupon['id']]
+                    # Actualizar solo si los datos han cambiado
+                    if relacion.idcupon_id != cupon.get('idcupon'):
+                        relacion.idcupon_id = cupon.get('idcupon')
+                        relacion.save()
+                    cupones_a_conservar.add(relacion.id)
+
+            elif 'idcupon' in cupon:  # Relación nueva o existente enviada por cupón
+                if cupon['idcupon'] in relaciones_por_cupon:
+                    relacion = relaciones_por_cupon[cupon['idcupon']]
+                    cupones_a_conservar.add(relacion.id)
+                else:
+                    nueva_relacion = tblitemcupon.objects.create(
+                        iditem=item,
+                        idcupon_id=cupon['idcupon']
+                    )
+                    cupones_a_conservar.add(nueva_relacion.id)
+
+        # Eliminar relaciones no enviadas
+        relaciones_actuales.exclude(id__in=cupones_a_conservar).delete()
 
 
     def patch_item_itemsrelacionados(self, item, itemsrelacionados_data):
         """
-        Actualiza los items relacionados a un item de forma parcial.
+        Actualiza los ítems relacionados asociados a un ítem de forma parcial.
+        Elimina las relaciones existentes que no están en los datos enviados.
         """
-        for itemsrelacionados in itemsrelacionados_data:
-            if 'id' in itemsrelacionados:  # Actualizar un item relacionado existente
-                relacionado_obj = Tblitemrelacionado.objects.get(pk=itemsrelacionados['id'])
-                relacionado_obj.item_relacionado_id = itemsrelacionados.get("item_relacionado", relacionado_obj.item_relacionado_id)
-                relacionado_obj.save()
-            else:  # Añadir un nuevo item relacionado
-                Tblitemrelacionado.objects.create(
-                    item=item,
-                    item_relacionado_id=itemsrelacionados.get("item_relacionado")
-                )
+        # Obtener las relaciones actuales desde la base de datos
+        relaciones_actuales = Tblitemrelacionado.objects.filter(item=item)
+        relaciones_por_id = {rel.id: rel for rel in relaciones_actuales}
+        relaciones_por_item_relacionado = {rel.item_relacionado_id: rel for rel in relaciones_actuales}
 
-    
-  
+        # Rastrear las relaciones que deben conservarse
+        itemsrelacionados_a_conservar = set()
+
+        for itemsrelacionados in itemsrelacionados_data:
+            if 'id' in itemsrelacionados:  # Relación existente enviada por ID
+                if itemsrelacionados['id'] in relaciones_por_id:
+                    relacion = relaciones_por_id[itemsrelacionados['id']]
+                    # Actualizar solo si los datos han cambiado
+                    if relacion.item_relacionado_id != itemsrelacionados.get('item_relacionado'):
+                        relacion.item_relacionado_id = itemsrelacionados.get('item_relacionado')
+                        relacion.save()
+                    itemsrelacionados_a_conservar.add(relacion.id)
+
+            elif 'item_relacionado' in itemsrelacionados:  # Relación nueva o existente enviada por ítem relacionado
+                if itemsrelacionados['item_relacionado'] in relaciones_por_item_relacionado:
+                    relacion = relaciones_por_item_relacionado[itemsrelacionados['item_relacionado']]
+                    itemsrelacionados_a_conservar.add(relacion.id)
+                else:
+                    nuevo_relacionado = Tblitemrelacionado.objects.create(
+                        item=item,
+                        item_relacionado_id=itemsrelacionados['item_relacionado']
+                    )
+                    itemsrelacionados_a_conservar.add(nuevo_relacionado.id)
+
+        # Eliminar relaciones no enviadas
+        relaciones_actuales.exclude(id__in=itemsrelacionados_a_conservar).delete()
+
   
     #---------
     @action(detail=False, methods=['post'], url_path='upload-multiple', serializer_class=TblitemTestSerializer)
