@@ -206,13 +206,37 @@ class ClasesYPropiedadesView(APIView):
                 "clase": clase.nombre,
                 "propiedades": propiedades_list
             })
+        
+        marcas = Marca.objects.all()
 
+        # Obtener todos los modelos con su idmarca
+        modelos = Tblmodelo.objects.all()
+
+        # Crear la lista de marcas
+        lista_marcas = [
+            {"id": marca.id, "nombre": marca.nombre}
+            for marca in marcas
+        ]
+        filtro_general.append({"marcas": lista_marcas})
+
+        # Crear la lista de modelos
+        lista_modelos = [
+            {"idmodelo": modelo.id, "nombre": modelo.nombre, "idmarca": modelo.idmarca.id if modelo.idmarca else None}
+            for modelo in modelos
+        ]
+        
+        filtro_general.append({"modelos": lista_modelos})
+      
+            
+            
         # "filtro dinamico"
         filtro_dinamico = {
             "ancho": [],
             "perfil": [],
             "aro": []
         }
+        
+        
 
         # 1. Obtener todos los diferentes valores de ancho
         anchos = Tblitem.objects.filter(activo=True).values('ancho').annotate(
@@ -224,35 +248,49 @@ class ClasesYPropiedadesView(APIView):
         ]
 
         # 2. Si se recibe "ancho", filtrar items por "ancho" y listar perfiles
+# 2. Si se recibe "ancho", filtrar items por "ancho" y listar perfiles
         if "ancho" in filtros:
             ancho_filtro = filtros['ancho']
             items_por_ancho = Tblitem.objects.filter(activo=True, ancho=ancho_filtro)
 
-            perfiles = items_por_ancho.values('clases_propiedades__propiedad').annotate(
-                items_existentes=Count('idproduct')
-            ).filter(clases_propiedades__idclase__nombre="Perfil").order_by('clases_propiedades__propiedad')
+                # Contar perfiles vinculados
+            perfiles_vinculados = (
+                items_por_ancho
+                .prefetch_related('clases_propiedades')  # Traer todas las clases relacionadas
+                .filter(clases_propiedades__idclase__nombre="Perfil")  # Filtrar solo las clases "Perfil"
+                .values('clases_propiedades__propiedad')
+                .annotate(items_existentes=Count('idproduct'))
+                .order_by('clases_propiedades__propiedad')
+            )
 
+            # Construir el listado para filtro_dinamico
             filtro_dinamico['perfil'] = [
-                {"perfil": p['clases_propiedades__propiedad'], "items_existentes": p['items_existentes']}
-                for p in perfiles if p['clases_propiedades__propiedad'] is not None
+                {
+                    "perfil": p['clases_propiedades__propiedad'],
+                    "items_existentes": p['items_existentes']
+                }
+                for p in perfiles_vinculados if p['clases_propiedades__propiedad'] is not None
             ]
-
-        # 3. Si se reciben "ancho" y "perfil", filtrar items por ambos y listar aros
+        
+# 3. Si se reciben "ancho" y "perfil", filtrar items por ambos y listar aros
         if "ancho" in filtros and "perfil" in filtros:
-            ancho_filtro = filtros['ancho']
             perfil_filtro = filtros['perfil']
-
+            
+            # Filtrar ítems por "ancho" y "perfil"
             items_por_ancho_y_perfil = Tblitem.objects.filter(
                 activo=True,
                 ancho=ancho_filtro,
-                clases_propiedades__idclase__nombre="Perfil",
-                clases_propiedades__propiedad=perfil_filtro
+                clases_propiedades__idclase__nombre="Perfil",  # Filtrar solo las clases "Perfil"
+                clases_propiedades__propiedad=perfil_filtro  # Filtrar por el perfil recibido
             )
 
-            aros = items_por_ancho_y_perfil.values('clases_propiedades__propiedad').annotate(
+            # Filtrar los aros relacionados con los ítems filtrados por "ancho" y "perfil"
+            aros = items_por_ancho_y_perfil.prefetch_related('clases_propiedades')  # Usar el queryset filtrado
+            aros = aros.filter(clases_propiedades__idclase__nombre="Aro")  # Asegurarse de que solo se filtren los aros
+            aros = aros.values('clases_propiedades__propiedad').annotate(
                 items_existentes=Count('idproduct')
-            ).filter(clases_propiedades__idclase__nombre="Aro").order_by('clases_propiedades__propiedad')
-
+            ).order_by('clases_propiedades__propiedad')
+            
             filtro_dinamico['aro'] = [
                 {"aro": a['clases_propiedades__propiedad'], "items_existentes": a['items_existentes']}
                 for a in aros if a['clases_propiedades__propiedad'] is not None
