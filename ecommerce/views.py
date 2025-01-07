@@ -180,34 +180,89 @@ def get_tokens_by_buyer(request):
 
 
 
-
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.db.models import Count
 
 
 class ClasesYPropiedadesView(APIView):
-    def get(self, request):
-        # Inicializa una lista para almacenar las clases y sus propiedades
-        clases_propiedades = []
-        
-        # Obtiene todas las clases y sus propiedades relacionadas
+    def post(self, request):
+        # JSON de entrada
+        filtros = request.data
+
+        # "filtro general"
+        filtro_general = []
         clases = Tblitemclase.objects.all().prefetch_related('tblitempropiedad_set')
         
-        # Agrupa las propiedades por clase
         for clase in clases:
-            vinculos = tblitemclasevinculo.objects.filter(idclase=clase, activo=True).values('propiedad').distinct()
+            vinculos = tblitemclasevinculo.objects.filter(
+                idclase=clase, activo=True
+            ).values('propiedad').distinct()
 
-# Construir la lista de propiedades únicas
             propiedades_list = [{"nombre": v['propiedad']} for v in vinculos]
-
-            clases_propiedades.append({
+            filtro_general.append({
                 "id": clase.pk,
                 "idclase": clase.idclase,
                 "clase": clase.nombre,
                 "propiedades": propiedades_list
             })
 
-        # Retorna la respuesta
-        return Response(clases_propiedades)
-    
+        # "filtro dinamico"
+        filtro_dinamico = {
+            "ancho": [],
+            "perfil": [],
+            "aro": []
+        }
+
+        # 1. Obtener todos los diferentes valores de ancho
+        anchos = Tblitem.objects.filter(activo=True).values('ancho').annotate(
+            items_existentes=Count('idproduct')
+        ).order_by('ancho')
+        filtro_dinamico['ancho'] = [
+            {"ancho": a['ancho'], "items_existentes": a['items_existentes']}
+            for a in anchos if a['ancho'] is not None
+        ]
+
+        # 2. Si se recibe "ancho", filtrar items por "ancho" y listar perfiles
+        if "ancho" in filtros:
+            ancho_filtro = filtros['ancho']
+            items_por_ancho = Tblitem.objects.filter(activo=True, ancho=ancho_filtro)
+
+            perfiles = items_por_ancho.values('clases_propiedades__propiedad').annotate(
+                items_existentes=Count('idproduct')
+            ).filter(clases_propiedades__idclase__nombre="Perfil").order_by('clases_propiedades__propiedad')
+
+            filtro_dinamico['perfil'] = [
+                {"perfil": p['clases_propiedades__propiedad'], "items_existentes": p['items_existentes']}
+                for p in perfiles if p['clases_propiedades__propiedad'] is not None
+            ]
+
+        # 3. Si se reciben "ancho" y "perfil", filtrar items por ambos y listar aros
+        if "ancho" in filtros and "perfil" in filtros:
+            ancho_filtro = filtros['ancho']
+            perfil_filtro = filtros['perfil']
+
+            items_por_ancho_y_perfil = Tblitem.objects.filter(
+                activo=True,
+                ancho=ancho_filtro,
+                clases_propiedades__idclase__nombre="Perfil",
+                clases_propiedades__propiedad=perfil_filtro
+            )
+
+            aros = items_por_ancho_y_perfil.values('clases_propiedades__propiedad').annotate(
+                items_existentes=Count('idproduct')
+            ).filter(clases_propiedades__idclase__nombre="Aro").order_by('clases_propiedades__propiedad')
+
+            filtro_dinamico['aro'] = [
+                {"aro": a['clases_propiedades__propiedad'], "items_existentes": a['items_existentes']}
+                for a in aros if a['clases_propiedades__propiedad'] is not None
+            ]
+
+        # Respuesta final
+        return Response({
+            "filtro general": filtro_general,
+            "filtro dinamico": filtro_dinamico
+        })
     
 from rest_framework.pagination import PageNumberPagination
 
@@ -601,19 +656,46 @@ class TblitemViewSet(ModelViewSet):
 
     def patch_item_vinculos(self, item, vinculos_data):
         """
-        Actualiza los vínculos asociados a un item de forma parcial.
+        Actualiza los vínculos asociados a un ítem de forma parcial.
+        Elimina los vínculos existentes que no están en los datos enviados.
         """
+        # Obtener las relaciones actuales desde la base de datos
+        relaciones_actuales = tblitemclasevinculo.objects.filter(iditem=item)
+        relaciones_por_id = {rel.id: rel for rel in relaciones_actuales}
+        relaciones_por_clase = {rel.idclase_id: rel for rel in relaciones_actuales}
+
+        # Rastrear los vínculos que deben conservarse
+        vinculos_a_conservar = set()
+
         for vinculo in vinculos_data:
-            if 'id' in vinculo:  # Actualizar un vínculo existente
-                vinculo_obj = tblitemclasevinculo.objects.get(pk=vinculo['id'])
-                vinculo_obj.propiedad = vinculo.get('propiedad', vinculo_obj.propiedad)
-                vinculo_obj.save()
-            else:  # Añadir un nuevo vínculo
-                tblitemclasevinculo.objects.create(
-                    iditem=item,
-                    idclase_id=vinculo.get("idclase"),
-                    propiedad=vinculo.get("propiedad", "")
-                )
+            if 'id' in vinculo:  # Relación existente enviada por ID
+                if vinculo['id'] in relaciones_por_id:
+                    relacion = relaciones_por_id[vinculo['id']]
+                    # Actualizar solo si los datos han cambiado
+                    if relacion.idclase_id != vinculo.get('idclase') or relacion.propiedad != vinculo.get('propiedad'):
+                        relacion.idclase_id = vinculo.get('idclase', relacion.idclase_id)
+                        relacion.propiedad = vinculo.get('propiedad', relacion.propiedad)
+                        relacion.save()
+                    vinculos_a_conservar.add(relacion.id)
+
+            elif 'idclase' in vinculo:  # Relación nueva o existente enviada por clase
+                if vinculo['idclase'] in relaciones_por_clase:
+                    relacion = relaciones_por_clase[vinculo['idclase']]
+                    # Actualizar la propiedad si es necesario
+                    if relacion.propiedad != vinculo.get('propiedad', relacion.propiedad):
+                        relacion.propiedad = vinculo.get('propiedad', relacion.propiedad)
+                        relacion.save()
+                    vinculos_a_conservar.add(relacion.id)
+                else:  # Crear una nueva relación
+                    nueva_relacion = tblitemclasevinculo.objects.create(
+                        iditem=item,
+                        idclase_id=vinculo['idclase'],
+                        propiedad=vinculo.get('propiedad', "")
+                    )
+                    vinculos_a_conservar.add(nueva_relacion.id)
+
+        # Eliminar vínculos no enviados
+        relaciones_actuales.exclude(id__in=vinculos_a_conservar).delete()
 
 
     def patch_item_categorias(self, item, categorias_data):
@@ -1123,3 +1205,6 @@ class TbldetallepedidoViewSet(ModelViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['idpedido__id', 'idproduct__descripcion']
     filterset_fields = ['activo', 'idpedido_id', 'idproduct_id', 'cantidad', 'preciototal', 'preciunitario']
+
+
+
