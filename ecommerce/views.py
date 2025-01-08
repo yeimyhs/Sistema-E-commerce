@@ -454,6 +454,13 @@ class TblcategoriaViewSet(ModelViewSet):
     search_fields = ['nombre']
     filterset_fields = ['activo', 'id', 'nombre']
 
+class FleteViewSet(ModelViewSet):
+    queryset = Flete.objects.order_by('pk')
+    serializer_class = FleteSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    search_fields = ['iddepartamento',"idcategoria__nombre"]
+    filterset_fields = ['precio','activo', 'id', 'idcategoria__nombre',"iddepartamento"]
+
 class TblmodeloViewSet(ModelViewSet):
     queryset = Tblmodelo.objects.order_by('pk')
     serializer_class = TblmodeloSerializer

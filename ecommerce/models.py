@@ -42,6 +42,8 @@ class Cupon(models.Model):
         db_table = 'Cupon'
 
 #------------------------------------------------------------------
+
+        
 class Marca(models.Model):
     activo = models.BooleanField(default =1)
     id = models.BigAutoField(primary_key=True)
@@ -51,7 +53,7 @@ class Marca(models.Model):
     class Meta:
         db_table = 'Marca'
         
-
+        
 class Tblcategoria(models.Model):
     activo = models.BooleanField(default =1)
     id = models.BigAutoField(primary_key=True)
@@ -72,8 +74,48 @@ class tblitemcategoria(models.Model):
     class Meta:
         db_table = 'tblitemcategoria'
 
-        
-        
+
+class Flete(models.Model):
+    DEPARTAMENTOS = [
+        ('01', 'Amazonas'),
+        ('02', 'Áncash'),
+        ('03', 'Apurímac'),
+        ('04', 'Arequipa'),
+        ('05', 'Ayacucho'),
+        ('06', 'Cajamarca'),
+        ('07', 'Callao'),
+        ('08', 'Cusco'),
+        ('09', 'Huancavelica'),
+        ('10', 'Huánuco'),
+        ('11', 'Ica'),
+        ('12', 'Junín'),
+        ('13', 'La Libertad'),
+        ('14', 'Lambayeque'),
+        ('15', 'Lima'),
+        ('16', 'Loreto'),
+        ('17', 'Madre de Dios'),
+        ('18', 'Moquegua'),
+        ('19', 'Pasco'),
+        ('20', 'Piura'),
+        ('21', 'Puno'),
+        ('22', 'San Martín'),
+        ('23', 'Tacna'),
+        ('24', 'Tumbes'),
+        ('25', 'Ucayali'),
+    ]
+    activo = models.BooleanField(default =1)
+    id = models.BigAutoField(primary_key=True)
+    iddepartamento = models.CharField(
+        max_length=2,
+        choices=DEPARTAMENTOS,
+        verbose_name="Departamento"
+    )
+    precio = models.DecimalField(max_digits=20, decimal_places=2)  # This field type is a guess.
+    idcategoria = models.ForeignKey(Tblcategoria, on_delete=models.CASCADE, db_column='idcategoria')
+
+    class Meta:
+        db_table = 'Flete'
+              
 class Tblmodelo(models.Model):
     activo = models.BooleanField(default =1)
     id = models.BigAutoField(primary_key=True)
@@ -394,6 +436,7 @@ class Tblitemclase(models.Model):
     class Meta:
         db_table = 'tblItemClase'
 
+#yanooooo
 class Tblitempropiedad(models.Model):
     activo = models.BooleanField(default =1)
     idpropiedad = models.BigAutoField(primary_key=True)
