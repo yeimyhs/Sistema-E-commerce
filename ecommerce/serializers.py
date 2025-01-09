@@ -66,6 +66,34 @@ class FleteSerializer(ModelSerializer):
         #depth = 1
         model = Flete
         fields = '__all__'
+        
+
+class FleteCategoriaValorSerializer(serializers.Serializer):
+    idcategoria = serializers.IntegerField()
+    val = serializers.DecimalField(max_digits=20, decimal_places=2)
+
+class DepartamentoSerializer(serializers.Serializer):
+    iddepartamento = serializers.CharField(max_length=2)
+    valores = FleteCategoriaValorSerializer(many=True)
+
+    def create(self, validated_data):
+        iddepartamento = validated_data['iddepartamento']
+        valores = validated_data['valores']
+
+        # Crear una lista de instancias Flete
+        fletes = [
+            Flete(
+                iddepartamento=iddepartamento,
+                idcategoria_id=valor['idcategoria'],
+                precio=valor['val']
+            )
+            for valor in valores
+        ]
+
+        # Inserción masiva
+        Flete.objects.bulk_create(fletes)
+        return validated_data
+
 
 class tblitemcategoriaSerializer(ModelSerializer):
     categoria_detalle =TblcategoriaSerializer(source='idcategoria', read_only=True)

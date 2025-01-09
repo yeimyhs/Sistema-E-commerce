@@ -461,6 +461,21 @@ class FleteViewSet(ModelViewSet):
     search_fields = ['iddepartamento',"idcategoria__nombre"]
     filterset_fields = ['precio','activo', 'id', 'idcategoria__nombre',"iddepartamento"]
 
+    @swagger_auto_schema(
+        operation_description="Creación masiva de Fletes",
+        request_body=DepartamentoSerializer(many=True),
+        responses={201: "Fletes creados exitosamente", 400: "Error en los datos proporcionados"}
+    )
+    @action(detail=False, methods=['post'], url_path='bulk-create', serializer_class=DepartamentoSerializer)
+    def bulk_create(self, request):
+        """
+        Acción personalizada para crear múltiples registros de Flete.
+        """
+        serializer = DepartamentoSerializer(data=request.data, many=True)
+        if serializer.is_valid():
+            serializer.save()  # Llama al método `create` en el serializer
+            return Response({'message': 'Fletes creados exitosamente.'}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 class TblmodeloViewSet(ModelViewSet):
     queryset = Tblmodelo.objects.order_by('pk')
     serializer_class = TblmodeloSerializer
@@ -1160,7 +1175,7 @@ class TblimagenitemViewSet(ModelViewSet):
     search_fields = ['imagen', 'idproduct__descripcion']
     filterset_fields = ['activo', 'idimagen', 'idproduct_id', 'estado']
     
-    @action(detail=False, methods=['post'], url_path='upload-multiple')
+    @action(detail=False, methods=['post'], url_path='upload-multiple', serializer_class=MultipleImagenItemSerializer)
     def upload_multiple(self, request):
         """
         Endpoint personalizado para subir múltiples imágenes relacionadas a un producto.
