@@ -305,7 +305,7 @@ class ClasesYPropiedadesView(APIView):
 from rest_framework.pagination import PageNumberPagination
 
 class FixedPageNumberPagination(PageNumberPagination):
-    page_size = 1  # Fijamos el tamaño de página a 10
+    page_size = 10  # Fijamos el tamaño de página a 10
 from rest_framework.response import Response
 
 class BusquedaDinamicaViewSet(viewsets.ViewSet):
@@ -313,27 +313,52 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
     pagination_class = FixedPageNumberPagination  # Clase de paginación personalizada
 
     def list(self, request):
-        query = Q()  # Inicializamos una consulta vacía
+        # Obtener el JSON del cuerpo de la solicitud
+        data = request.data
 
-        # Validar que el parámetro clase exista
-        clases = request.query_params.getlist("clase")
-        if not clases:
-            return Response({"detail": "El parámetro 'clase' es obligatorio."}, status=400)
+        # Construcción del query
+        query = Q()
 
-        # Procesar los filtros
-        for filtro in clases:
-            if "propiedad=" in filtro:
-                try:
-                    clase, propiedad = filtro.split(",propiedad=")
-                    query |= Q(
-                        clases_propiedades__idclase=clase.strip(),
-                        clases_propiedades__propiedad__iexact=propiedad.strip()
+        # Filtros adicionales opcionales
+        # Filtros adicionales opcionales
+        cadena_busqueda = data.get("cadena_busqueda")
+        id_categoria = data.get("id_categoria")
+        id_marca_list = data.get("id_marca", [])
+        id_modelo_list = data.get("id_modelo", [])
+        clase_categoria = data.get("clase_categoria", [])
+
+        # Aplicar los filtros si están presentes
+        if id_categoria:
+            query &= Q(categoria_relacionada=id_categoria)
+
+        if cadena_busqueda:
+            query &= Q(titulo__icontains=cadena_busqueda)
+
+        if id_marca_list:
+            query &= Q(idmodelo__idmarca_id__in=id_marca_list)
+
+        if id_modelo_list:
+            query &= Q(idmodelo__in=id_modelo_list)
+
+        if clase_categoria:
+            subquery = Q()
+            for item in clase_categoria:
+                id_clase = item.get("id_clase")
+                propiedad_list = item.get("propiedad", [])
+
+                if id_clase and propiedad_list:
+                    subquery |= Q(
+                        clases_propiedades__idclase=id_clase,
+                        clases_propiedades__propiedad__in=propiedad_list
                     )
-                except ValueError:
-                    continue
+            query &= subquery
 
-        # Filtrar los elementos que cumplen con los filtros
-        items = Tblitem.objects.filter(query).distinct()
+        # Si no se envía ningún filtro, listar todos los items
+        if not (id_categoria or cadena_busqueda or id_marca_list or id_modelo_list or clase_categoria):
+            items = Tblitem.objects.all()
+        else:
+            # Filtrar los elementos que cumplen con los filtros
+            items = Tblitem.objects.filter(query).distinct()
 
         # Paginación
         paginator = self.pagination_class()
@@ -344,7 +369,6 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
 
         # Responder con los datos paginados
         return paginator.get_paginated_response(serializer.data)
-
 
 class LoginView(KnoxLoginView):
     permission_classes = (permissions.AllowAny,)
@@ -461,13 +485,62 @@ class FleteViewSet(ModelViewSet):
     search_fields = ['iddepartamento',"idcategoria__nombre"]
     filterset_fields = ['precio','activo', 'id', 'idcategoria__nombre',"iddepartamento"]
 
+    @action(detail=False, methods=['put'], url_path='matriz-update', serializer_class=DepartamentoSerializer)
+    def matriz_actualizacion(self, request, *args, **kwargs):
+        """
+        Actualizar los registros de un departamento.
+        """
+        serializer = self.get_serializer(data=request.data, many=True)
+        if serializer.is_valid():
+            # Actualizar registros
+            for departamento_data in serializer.validated_data:
+                iddepartamento = departamento_data['iddepartamento']
+                valores = departamento_data['valores']
+
+                # Eliminar registros existentes del departamento
+                Flete.objects.filter(iddepartamento=iddepartamento).delete()
+
+                # Crear nuevos registros
+                fletes = [
+                    Flete(
+                        iddepartamento=iddepartamento,
+                        idcategoria_id=valor['idcategoria'],
+                        precio=valor['val']
+                    )
+                    for valor in valores
+                ]
+                Flete.objects.bulk_create(fletes)
+
+            return Response({'message': 'Fletes actualizados exitosamente.'}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['get'], url_path='matriz-lista')
+    def matriz_lista(self, request, *args, **kwargs):
+        """
+        Listar los departamentos con sus categorías y precios.
+        """
+        departamentos = Flete.objects.values('iddepartamento').distinct()
+        data = []
+
+        for departamento in departamentos:
+            iddepartamento = departamento['iddepartamento']
+            valores = Flete.objects.filter(iddepartamento=iddepartamento).values(
+                categoria=F('idcategoria__id'),
+                val=F('precio')
+            )
+            data.append({
+                'iddepartamento': iddepartamento,
+                'valores': list(valores)
+            })
+
+        return Response(data, status=status.HTTP_200_OK)
     @swagger_auto_schema(
         operation_description="Creación masiva de Fletes",
         request_body=DepartamentoSerializer(many=True),
         responses={201: "Fletes creados exitosamente", 400: "Error en los datos proporcionados"}
     )
-    @action(detail=False, methods=['post'], url_path='bulk-create', serializer_class=DepartamentoSerializer)
-    def bulk_create(self, request):
+    @action(detail=False, methods=['post'], url_path='matriz-creacion', serializer_class=DepartamentoSerializer)
+    def matriz_creacion(self, request):
         """
         Acción personalizada para crear múltiples registros de Flete.
         """
@@ -476,6 +549,9 @@ class FleteViewSet(ModelViewSet):
             serializer.save()  # Llama al método `create` en el serializer
             return Response({'message': 'Fletes creados exitosamente.'}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
 class TblmodeloViewSet(ModelViewSet):
     queryset = Tblmodelo.objects.order_by('pk')
     serializer_class = TblmodeloSerializer
