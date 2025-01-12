@@ -1073,31 +1073,79 @@ class TblitemViewSet(ModelViewSet):
         Tblitemrelacionado.objects.bulk_create(items_relacionados)
 
 #------------------------------------------------------------------
+from rest_framework.parsers import MultiPartParser
+import pandas as pd
+from django.db import transaction
+class BulkUploadItemsAPIView(APIView):
+    parser_classes = [MultiPartParser]
 
-from rest_framework.viewsets import ViewSet
+    def post(self, request):
+        file = request.FILES.get('file')
 
-class TblitemUploadViewSet(ViewSet):
-    @transaction.atomic
-    def create(self, request):
-        serializer = TblitemTestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
-
-        item_data = validated_data.get('item', {})
-        vinculos_data = validated_data.get('vinculos', [])
-        categorias_data = validated_data.get('categorias', [])
-        cupones_data = validated_data.get('cupones', [])
-        itemsrelacionados_data = validated_data.get('itemsrelacionados', [])
+        if not file:
+            return Response({"detail": "No se proporcionó ningún archivo."}, status=400)
 
         try:
-            with transaction.atomic():
-                # Lógica de creación
-                return Response({
-                    "message": "Item creado con éxito.",
-                }, status=status.HTTP_201_CREATED)
+            # Leer el archivo Excel
+            df = pd.read_excel(file)
         except Exception as e:
-            return Response({"error": f"Error inesperado: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+            return Response({"detail": f"Error al leer el archivo: {str(e)}"}, status=400)
+
+        required_columns = [
+            'activo', 'codigosku', 'titulo', 'stock', 'descripcion', 'destacado',
+            'agotado', 'nuevoproducto', 'preciorebajado', 'precionormal',
+            'fechapublicacion', 'peso', 'altura', 'profundidad',
+            'ancho', 'estado', 'idmodelo'
+        ]
+
+        # Verificar que todas las columnas requeridas estén presentes
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            return Response({"detail": f"Faltan las siguientes columnas en el archivo: {', '.join(missing_columns)}"}, status=400)
+
+        items_to_create = []
+
+        for _, row in df.iterrows():
+            try:
+                item_data = {
+                    'activo': row['activo'],
+                    'codigosku': row['codigosku'],
+                    'titulo': row['titulo'],
+                    'stock': row['stock'],
+                    'descripcion': row['descripcion'],
+                    'destacado': row['destacado'],
+                    'agotado': row.get('agotado', None),
+                    'nuevoproducto': row['nuevoproducto'],
+                    'preciorebajado': row.get('preciorebajado', None),
+                    'precionormal': row['precionormal'],
+                    'imagenprincipal': row.get('imagenprincipal', None),
+                    'fechapublicacion': row['fechapublicacion'],
+                    'peso': row.get('peso', None),
+                    'altura': row.get('altura', None),
+                    'profundidad': row.get('profundidad', None),
+                    'ancho': row.get('ancho', None),
+                    'estado': row['estado'],
+                    'idmodelo_id': row.get('idmodelo', None),
+                }
+                
+                # Validar con el serializer
+                serializer = TblitemSerializer(data=item_data)
+                serializer.is_valid(raise_exception=True)
+
+                # Agregar a la lista de creación masiva
+                items_to_create.append(Tblitem(**serializer.validated_data))
+
+            except Exception as e:
+                return Response({"detail": f"Error en la fila {_ + 2}: {str(e)}"}, status=400)
+
+        # Crear los ítems en la base de datos
+        try:
+            with transaction.atomic():
+                Tblitem.objects.bulk_create(items_to_create)
+        except Exception as e:
+            return Response({"detail": f"Error al guardar los datos: {str(e)}"}, status=500)
+
+        return Response({"detail": "Items cargados exitosamente.", "total": len(items_to_create)})
 
 from django.shortcuts import render, redirect
 from django.contrib import messages

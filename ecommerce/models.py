@@ -211,6 +211,25 @@ class Tblnoticia(models.Model):
 
 class Tblpedido(models.Model):
     activo = models.BooleanField(default =1)
+
+    
+    TIPOS_ID = [
+        ('DNI', 'DNI'),
+        ('RUC', 'RUC')
+    ]
+
+    tipoid = models.CharField(
+        max_length=25,  # Elige un valor adecuado para los códigos más largos
+        choices=TIPOS_ID
+    )
+    nroid = models.BigIntegerField()
+    email = models.EmailField(verbose_name="Correo Electrónico")
+    nombre = models.CharField(max_length=100, verbose_name="Nombre")
+    apellidos = models.CharField(max_length=100, verbose_name="Apellido Materno")
+    celular = models.CharField(max_length=20, verbose_name="Celular o Teléfono")
+    
+    
+    
     idpedido = models.BigAutoField(primary_key=True)
     idcliente = models.ForeignKey(settings.AUTH_USER_MODEL, models.DO_NOTHING, db_column='idCliente')  # Field name made lowercase.
     subtotal = models.TextField()  # This field type is a guess.

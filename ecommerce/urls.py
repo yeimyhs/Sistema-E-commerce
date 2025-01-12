@@ -24,9 +24,10 @@ urlpatterns = [
     path('clases_propiedades/', views.ClasesYPropiedadesView.as_view(), name='clases_propiedades'),
     path('filtrobusqueda/', views.BusquedaDinamicaViewSet.as_view({'get': 'list'})),
     
+    path('bulkitem/', views.BulkUploadItemsAPIView.as_view()),
     
-    path('upload_xlsx/', views.upload_xlsx, name='upload_xlsx'),
-    path('download_template/', views.download_template, name='download_template'),
+    #path('upload_xlsx/', views.upload_xlsx, name='upload_xlsx'),
+    #path('download_template/', views.download_template, name='download_template'),
 ]
 router.register(r'administracion', views.AdministracionViewSet)
 router.register(r'cupon', views.CuponViewSet)
