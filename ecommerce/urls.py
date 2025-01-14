@@ -26,6 +26,7 @@ urlpatterns = [
     
     path('bulkitem/', views.BulkUploadItemsAPIView.as_view()),
     
+    path("upload-images/", views.upload_images, name="upload_images"),
     #path('upload_xlsx/', views.upload_xlsx, name='upload_xlsx'),
     #path('download_template/', views.download_template, name='download_template'),
 ]

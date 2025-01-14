@@ -35,6 +35,87 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 
+import rarfile
+import os
+from django.http import JsonResponse, HttpResponseBadRequest
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from django.views.decorators.csrf import csrf_exempt
+from .models import Tblitem
+import os
+import rarfile
+from io import BytesIO
+from PIL import Image
+from django.core.files import File
+from django.http import JsonResponse
+from rest_framework.decorators import api_view
+from .models import Tblitem
+from django.conf import settings
+
+rarfile.UNRAR_TOOL = r"C:\Program Files\WinRAR\UnRAR.exe"
+@csrf_exempt
+def upload_images(request):
+    """
+    Servicio POST para subir un archivo RAR que contiene imágenes y asociarlas con los productos usando el SKU.
+    """
+    # Verificar que el archivo RAR esté presente en la solicitud
+    if 'rar_file' not in request.FILES:
+        return JsonResponse({'error': 'No se proporcionó un archivo RAR'}, status=400)
+
+    rar_file = request.FILES['rar_file']
+
+    # Guardar temporalmente el archivo RAR en el sistema
+    rar_file_path = os.path.join(settings.MEDIA_ROOT, 'temp.rar')
+    with open(rar_file_path, 'wb') as f:
+        for chunk in rar_file.chunks():
+            f.write(chunk)
+
+    try:
+        # Abrir el archivo RAR y procesar las imágenes
+        with rarfile.RarFile(rar_file_path) as rf:
+            # Iterar sobre los archivos dentro del RAR
+            for archivo in rf.infolist():
+                if archivo.is_file() and archivo.filename.lower().endswith('.jpg'):
+                    # Obtener el SKU del nombre de la imagen
+                    nombre_imagen = archivo.filename
+                    sku_imagen = nombre_imagen.split('/')[-1].split('.')[0]  # Eliminar cualquier prefijo y la barra
+ # El SKU es todo antes de .jpg
+                    print(sku_imagen)
+                    # Buscar el producto en la base de datos por el SKU
+                    try:
+                        producto = Tblitem.objects.get(codigosku=sku_imagen)
+                    except Tblitem.DoesNotExist:
+                        print(f"No se encontró el producto con SKU {sku_imagen}")
+                        continue
+
+                    # Extraer la imagen
+                    with rf.open(archivo) as f:
+                        imagen_bytes = f.read()
+                        imagen = Image.open(BytesIO(imagen_bytes))
+
+                        # Guardar la imagen en el campo imagenprincipal del producto
+                        imagen.name = archivo.filename  # Asignar el nombre original de la imagen
+                        imagen_path = os.path.join(settings.MEDIA_ROOT, 'imagenPrincipalItem', nombre_imagen)
+
+                        # Guardar la imagen en el sistema de archivos
+                        imagen.save(imagen_path)
+
+                        # Asignar la imagen al campo 'imagenprincipal' del producto
+                        with open(imagen_path, 'rb') as image_file:
+                            producto.imagenprincipal = File(image_file, nombre_imagen)
+                            producto.save()
+
+                    print(f"Imagen para SKU {sku_imagen} guardada exitosamente.")
+        
+        # Eliminar el archivo temporal
+        os.remove(rar_file_path)
+
+        return JsonResponse({'message': 'Imágenes procesadas y asociadas correctamente'}, status=200)
+
+    except Exception as e:
+        # Manejo de errores si ocurre algún problema
+        return JsonResponse({'error': str(e)}, status=500)
+
 import requests
 from requests.auth import HTTPBasicAuth
 from django.http import JsonResponse

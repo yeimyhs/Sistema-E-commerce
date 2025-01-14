@@ -225,7 +225,7 @@ class Tblpedido(models.Model):
     nroid = models.BigIntegerField()
     email = models.EmailField(verbose_name="Correo Electrónico")
     nombre = models.CharField(max_length=100, verbose_name="Nombre")
-    apellidos = models.CharField(max_length=100, verbose_name="Apellido Materno")
+    apellidos = models.CharField(max_length=100, verbose_name="Apellido")
     celular = models.CharField(max_length=20, verbose_name="Celular o Teléfono")
     
     

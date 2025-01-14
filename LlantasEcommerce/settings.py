@@ -125,7 +125,7 @@ DATABASES = {
     'default': {
         # Sqlite
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': BASE_DIR / 'dbpoblada.sqlite3',
     }
 }
 DATETIME_FORMAT = 'Y-m-d H:i:s' 
