@@ -396,7 +396,7 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
     def list(self, request):
         # Obtener el JSON del cuerpo de la solicitud
         data = request.data
-
+        params = request.query_params
         # Construcción del query
         query = Q()
 
@@ -440,6 +440,11 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
         else:
             # Filtrar los elementos que cumplen con los filtros
             items = Tblitem.objects.filter(query).distinct()
+
+        ordering = params.get("ordering", None)
+        print(ordering)
+        if ordering:
+            items = items.order_by(*ordering.split(","))
 
         # Paginación
         paginator = self.pagination_class()
