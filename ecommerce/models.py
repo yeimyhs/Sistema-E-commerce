@@ -228,6 +228,18 @@ class Tblpedido(models.Model):
     apellidos = models.CharField(max_length=100, verbose_name="Apellido Materno")
     celular = models.CharField(max_length=20, verbose_name="Celular o Teléfono")
     
+    TIPOS_ID_ENVIO = [
+        ('1', 'Envio a domicilio'),
+        ('2', 'Recojo en Tienda')
+    ]
+    tipoid = models.IntegerField(
+        max_length=2,  # Elige un valor adecuado para los códigos más largos
+        choices=TIPOS_ID_ENVIO
+    )
+    departamento = models.CharField(max_length=250)
+    provincia = models.CharField(max_length=250)
+    distrito = models.CharField(max_length=250)
+    #direccion = models.CharField(max_length=100, verbose_name="Nombre")
     
     
     idpedido = models.BigAutoField(primary_key=True)
