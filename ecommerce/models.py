@@ -225,7 +225,7 @@ class Tblpedido(models.Model):
     nroid = models.BigIntegerField()
     email = models.EmailField(verbose_name="Correo Electrónico")
     nombre = models.CharField(max_length=100, verbose_name="Nombre")
-    apellidos = models.CharField(max_length=100, verbose_name="Apellido")
+    apellidos = models.CharField(max_length=100, verbose_name="Apellido Materno")
     celular = models.CharField(max_length=20, verbose_name="Celular o Teléfono")
     
     
@@ -506,7 +506,7 @@ class Tblitemrelacionado(models.Model):
         
 class Tbldetallepedido(models.Model):
     activo = models.BooleanField(default =1)
-    idpedido = models.OneToOneField(Tblpedido, models.DO_NOTHING, db_column='idpedido', primary_key=True)
+    idpedido = models.ForeignKey(Tblpedido, models.DO_NOTHING, db_column='idpedido')
     idproduct = models.ForeignKey(Tblitem, models.DO_NOTHING, db_column='idproduct')
     cantidad = models.IntegerField()
     preciototal = models.TextField()  # This field type is a guess.

@@ -413,3 +413,19 @@ class TblitemTestSerializer(serializers.Serializer):
     )
     imagenprincipal = serializers.ImageField(required=False)
     idmodelo = serializers.IntegerField(required=False)
+    
+    
+    
+class PedidoConDetallesSerializer(serializers.ModelSerializer):
+    detalles = TbldetallepedidoSerializer(many=True)
+
+    class Meta:
+        model = Tblpedido
+        fields = ['idpedido', 'idcliente', 'subtotal', 'direcciondestino', 'total', 'igv', 'totaldescuento', 'idcupon', 'idmoneda', 'estado', 'detalles']
+
+    def create(self, validated_data):
+        detalles_data = validated_data.pop('detalles')
+        pedido = Tblpedido.objects.create(**validated_data)
+        for detalle_data in detalles_data:
+            Tbldetallepedido.objects.create(idpedido=pedido, **detalle_data)
+        return pedido

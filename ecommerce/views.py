@@ -1482,7 +1482,27 @@ class TblpedidoViewSet(ModelViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['idcliente__nombreusuario', 'total', 'estado']
     filterset_fields = ['activo', 'idpedido', 'idcliente_id', 'subtotal', 'total', 'igv', 'totaldescuento', 'idcupon_id', 'idmoneda_id', 'estado', 'fechacreacion', 'fechamodificacion']
+    @action(detail=True, methods=['post'], url_path='add-detalles')
+    def add_detalles(self, request, pk=None):
+        """
+        Acción personalizada para agregar múltiples detalles de pedido a un pedido existente.
+        """
+        try:
+            pedido = Tblpedido.objects.get(pk=pk)
+        except Tblpedido.DoesNotExist:
+            return Response({'detail': 'Pedido no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
+        detalles_data = request.data.get('detalles', [])
+        if not isinstance(detalles_data, list) or not detalles_data:
+            return Response({'detail': 'Se requiere una lista de detalles válida.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = TbldetallepedidoSerializer(data=detalles_data, many=True)
+        if serializer.is_valid():
+            for detalle in serializer.validated_data:
+                Tbldetallepedido.objects.create(idpedido=pedido, **detalle)
+            return Response({'detail': 'Detalles agregados exitosamente.'}, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TblCarruselViewSet(ModelViewSet):
