@@ -219,6 +219,7 @@ class Tblpedido(models.Model):
     ]
 
     tipoid = models.CharField( 
+        max_length=20,
         choices=TIPOS_ID
     )
     nroid = models.BigIntegerField()
@@ -227,11 +228,16 @@ class Tblpedido(models.Model):
     apellidos = models.CharField(max_length=100, verbose_name="Apellido Materno")
     celular = models.CharField(max_length=20, verbose_name="Celular o Teléfono")
     
+    RUC = models.CharField(max_length=20, blank=True, null=True)
+    razonsocial = models.TextField(blank=True, null=True)
+    
+    idsede = models.ForeignKey('Tblsede', models.DO_NOTHING, blank=True, null=True)  # Field name made lowercase.
+     
     TIPOS_ID_ENVIO = [
-        ('1', 'Envio a domicilio'),
-        ('2', 'Recojo en Tienda')
+        (1, 'Envio a domicilio'),
+        (2, 'Recojo en Tienda')
     ]
-    tipoid = models.IntegerField(
+    tipoenvio = models.IntegerField(
         choices=TIPOS_ID_ENVIO
     )
     departamento = models.CharField(max_length=250)
