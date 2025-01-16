@@ -20,9 +20,10 @@ urlpatterns = [
     
     path('crearpagoizip/', views.create_payment, name='create_payment'),
     path('auth-credentials/', views.AuthCredentialsView.as_view(), name='auth-credentials'),
-    
+    path("process-payment/", views.process_payment, name="process-payment"),
+     
     path('clases_propiedades/', views.ClasesYPropiedadesView.as_view(), name='clases_propiedades'),
-    path('filtrobusqueda/', views.BusquedaDinamicaViewSet.as_view({'get': 'list'})),
+    path('filtrobusqueda/', views.BusquedaDinamicaViewSet.as_view({'post': 'create'})),
     
     path('bulkitem/', views.BulkUploadItemsAPIView.as_view()),
     

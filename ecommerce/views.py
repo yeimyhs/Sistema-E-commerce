@@ -124,7 +124,6 @@ import json
 
 
 @csrf_exempt
-
 def create_payment(request):
     if request.method == 'POST':
         try:
@@ -261,6 +260,96 @@ def get_tokens_by_buyer(request):
 
 
 
+import hmac
+import hashlib
+import json
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
+import hashlib
+
+from cryptography.hazmat.primitives import hmac, hashes
+from cryptography.hazmat.backends import default_backend
+
+
+# Define tu clave secreta
+SHA_KEY = "TSEyml51VjdNpO9lA9BILIRUF8Ew6cLI2exAw2LstUBN9"  # Reemplaza con tu clave HMAC-SHA-256
+def check_hash(data, key):
+    """
+    Verifica la firma del mensaje usando HMAC-SHA256
+    """
+    supported_sign_algos = ['sha256_hmac']
+    alg = data.get('answer', {}).get('hashAlgorithm')
+    print(alg)
+    if alg not in supported_sign_algos:
+        return False
+    
+    # Obtener el answer original como string y reemplazar \/ por /
+    kr_answer = json.dumps(data.get('answer', {}).get('clientAnswer', {}), separators=(',', ':'))
+    kr_answer = kr_answer.replace('\\/', '/')
+    print(kr_answer)
+    # Calcular el hash
+    
+    '''    hash_obj = hmac.new(
+        kr_answer.encode('utf-8'),
+        key.encode('utf-8'),
+        hashlib.sha256
+    )'''
+
+    hash_obj = hashlib.pbkdf2_hmac('sha256', 
+                          kr_answer.encode('utf-8'),
+                          key.encode('utf-8'), 
+                          1).hex()
+    
+    hash_obj = hmac.HMAC(key.encode('utf-8'),
+                hashes.SHA256(),
+                backend=default_backend())
+    hash_obj.update(kr_answer.encode('utf-8'))
+    hash_obj = hash_obj.finalize().hex()
+    
+    print(hash_obj)
+    print("-------------",key.encode('utf-8'))
+    calculated_hash = hash_obj#.hexdigest()
+    print(calculated_hash)
+    h = data.get('answer', {}).get('hash')
+    print("========",h)
+    
+    # Comparar con el hash recibido
+    return calculated_hash == h
+
+@csrf_exempt
+def process_payment(request):
+    if request.method != 'POST':
+        return HttpResponse('Método no permitido', status=405)
+    
+    try:
+        # Obtener y decodificar el JSON recibido
+        data = json.loads(request.body.decode('utf-8'))
+        
+        # PASO 1: verificar la firma con SHA_KEY
+        if not check_hash(data, SHA_KEY):
+            return HttpResponse('Invalid signature.<br/>', status=400)
+        
+        # Preparar la respuesta siguiendo el formato original
+        answer = {
+            'kr-hash': data.get('answer', {}).get('hash'),
+            'kr-hash-algorithm': data.get('answer', {}).get('hashAlgorithm'),
+            'kr-answer-type': data.get('answer', {}).get('_type'),
+            'kr-answer': data.get('answer', {}).get('clientAnswer')
+        }
+        
+        # Convertir la respuesta a JSO  N y devolverla
+        return HttpResponse(
+            json.dumps(answer),
+            content_type='application/json'
+        )
+        
+    except json.JSONDecodeError:
+        return HttpResponse('Invalid JSON', status=400)
+    except Exception as e:
+        return HttpResponse(str(e), status=500)
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db.models import Count
@@ -393,7 +482,7 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
     serializer_class = TblitemSerializer
     pagination_class = FixedPageNumberPagination  # Clase de paginación personalizada
 
-    def list(self, request):
+    def create(self, request):
         # Obtener el JSON del cuerpo de la solicitud
         data = request.data
         params = request.query_params
@@ -442,10 +531,14 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
             items = Tblitem.objects.filter(query).distinct()
 
         ordering = params.get("ordering", None)
+        if ordering:
+            items = items.order_by(*ordering.split(","))
+        
+
+        ordering = params.get("ordering", None)
         print(ordering)
         if ordering:
             items = items.order_by(*ordering.split(","))
-
         # Paginación
         paginator = self.pagination_class()
         paginated_items = paginator.paginate_queryset(items, request)
@@ -728,6 +821,67 @@ class TblitemViewSet(ModelViewSet):
     serializer_class = TblitemSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
     filterset_class = TblitemFilter
+  
+    #----------------------------------------------------------------
+    @action(detail=False, methods=['get'], url_path='filtrobusqueda')
+    def busqueda_dinamicaitems(self, request):
+        """
+        Acción personalizada para realizar búsquedas dinámicas con filtros adicionales.
+        """
+        data = request.query_params
+        query = Q()
+
+        # Filtros adicionales opcionales
+        cadena_busqueda = data.get("cadena_busqueda")
+        id_categoria = data.get("id_categoria")
+        id_marca_list = data.getlist("id_marca", [])
+        id_modelo_list = data.getlist("id_modelo", [])
+        clase_categoria = data.getlist("clase_categoria", [])
+
+        # Aplicar los filtros si están presentes
+        if id_categoria:
+            query &= Q(categoria_relacionada=id_categoria)
+
+        if cadena_busqueda:
+            query &= Q(titulo__icontains=cadena_busqueda)
+
+        if id_marca_list:
+            query &= Q(idmodelo__idmarca_id__in=id_marca_list)
+
+        if id_modelo_list:
+            query &= Q(idmodelo__in=id_modelo_list)
+
+        if clase_categoria:
+            subquery = Q()
+            for item in clase_categoria:
+                id_clase = item.get("id_clase")
+                propiedad_list = item.get("propiedad", [])
+
+                if id_clase and propiedad_list:
+                    subquery |= Q(
+                        clases_propiedades__idclase=id_clase,
+                        clases_propiedades__propiedad__in=propiedad_list
+                    )
+            query &= subquery
+
+        # Obtener queryset filtrado
+        items = Tblitem.objects.filter(query).distinct()
+        
+         # Aplicar ordenamiento manual
+        ordering = data.get("ordering")
+        if ordering:
+            items = items.order_by(*ordering.split(","))
+            
+        # Serializar los resultados (la paginación y el ordenamiento se aplicarán automáticamente)
+        paginator = self.pagination_class()
+        paginated_items = paginator.paginate_queryset(items, request, view=self)
+
+        # Serializar los resultados
+        serializer = self.get_serializer(paginated_items, many=True)
+
+        # Responder con los datos paginados
+        return paginator.get_paginated_response(serializer.data)
+    #----------------------------------------------------------------
 
     @swagger_auto_schema(
         operation_description="Obtiene el detalle completo del ítem junto con el número de pedidos y los ingresos totales.",
