@@ -233,7 +233,6 @@ class Tblpedido(models.Model):
         ('2', 'Recojo en Tienda')
     ]
     tipoid = models.IntegerField(
-        max_length=2,  # Elige un valor adecuado para los códigos más largos
         choices=TIPOS_ID_ENVIO
     )
     departamento = models.CharField(max_length=250)
