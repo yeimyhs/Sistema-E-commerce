@@ -218,8 +218,7 @@ class Tblpedido(models.Model):
         ('RUC', 'RUC')
     ]
 
-    tipoid = models.CharField(
-        max_length=25,  # Elige un valor adecuado para los códigos más largos
+    tipoid = models.CharField( 
         choices=TIPOS_ID
     )
     nroid = models.BigIntegerField()
@@ -243,9 +242,9 @@ class Tblpedido(models.Model):
     
     idpedido = models.BigAutoField(primary_key=True)
     idcliente = models.ForeignKey(settings.AUTH_USER_MODEL, models.DO_NOTHING, db_column='idCliente')  # Field name made lowercase.
-    subtotal = models.TextField()  # This field type is a guess.
+    subtotal = models.FloatField()  # This field type is a guess.
     direcciondestino = models.TextField()
-    total = models.TextField()  # This field type is a guess.
+    total = models.FloatField()  # This field type is a guess.
     igv = models.FloatField(blank=True, null=True)
     totaldescuento = models.FloatField()
     idcupon = models.ForeignKey(Cupon, models.DO_NOTHING, db_column='idCupon', blank=True, null=True)  # Field name made lowercase.
