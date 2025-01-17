@@ -1583,28 +1583,29 @@ class TblpedidoViewSet(ModelViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['idcliente__nombreusuario', 'total', 'estado']
     filterset_fields = ['activo', 'idpedido', 'idcliente_id', 'subtotal', 'total', 'igv', 'totaldescuento', 'idcupon_id', 'idmoneda_id', 'estado', 'fechacreacion', 'fechamodificacion']
-    @action(detail=True, methods=['post'], url_path='add-detalles')
-    def add_detalles(self, request, pk=None):
+    def create(self, request, *args, **kwargs):
         """
-        Acción personalizada para agregar múltiples detalles de pedido a un pedido existente.
+        Sobrescribe el método create para procesar detalles del pedido.
         """
-        try:
-            pedido = Tblpedido.objects.get(pk=pk)
-        except Tblpedido.DoesNotExist:
-            return Response({'detail': 'Pedido no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        data = request.data
+        productos = data.pop('productos', None)  # Extraemos los productos del payload
 
-        detalles_data = request.data.get('detalles', [])
-        if not isinstance(detalles_data, list) or not detalles_data:
-            return Response({'detail': 'Se requiere una lista de detalles válida.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        serializer = TbldetallepedidoSerializer(data=detalles_data, many=True)
-        if serializer.is_valid():
-            for detalle in serializer.validated_data:
-                Tbldetallepedido.objects.create(idpedido=pedido, **detalle)
-            return Response({'detail': 'Detalles agregados exitosamente.'}, status=status.HTTP_201_CREATED)
+        if not productos or not isinstance(productos, list):
+            raise ValidationError({'productos': 'Debe incluir una lista de productos.'})
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():  # Usamos una transacción para garantizar consistencia
+            pedido_serializer = self.get_serializer(data=data)
+            pedido_serializer.is_valid(raise_exception=True)
+            pedido = pedido_serializer.save()
 
+            # Procesar los productos
+            for producto in productos:
+                producto['idpedido'] = pedido.idpedido  # Asociamos el pedido
+                detalle_serializer = TbldetallepedidoSerializer(data=producto)
+                detalle_serializer.is_valid(raise_exception=True)
+                detalle_serializer.save()
+
+        return Response(pedido_serializer.data, status=status.HTTP_201_CREATED)
 
 class TblCarruselViewSet(ModelViewSet):
     queryset = TblCarrusel.objects.order_by('pk')
