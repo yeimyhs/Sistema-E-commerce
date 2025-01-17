@@ -136,12 +136,7 @@ class TblnoticiaSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class TblpedidoSerializer(ModelSerializer):
 
-    class Meta:
-        #depth = 1
-        model = Tblpedido
-        fields = '__all__'
 
 
 class TblCarruselSerializer(ModelSerializer):
@@ -312,11 +307,23 @@ class TblitemrelacionadoSerializer(ModelSerializer):
         self.fields['item_detalle'] = TblitemBasicoSerializer(source='item', read_only=True)
 
 class TbldetallepedidoSerializer(ModelSerializer):
-
     class Meta:
         #depth = 1
         model = Tbldetallepedido
         fields = '__all__'
+        
+class TblpedidoSerializer(ModelSerializer):
+    detalleitems = serializers.SerializerMethodField()
+    
+    class Meta:
+        #depth = 1
+        model = Tblpedido
+        fields = '__all__'
+        
+    def get_detalleitems(self, obj):
+        detalleitems = Tbldetallepedido.objects.filter(idpedido=obj)
+        return TbldetallepedidoSerializer(detalleitems, many=True).data
+    
         
 class TblreclaisionSerializer(ModelSerializer):
 
@@ -417,11 +424,14 @@ class TblitemTestSerializer(serializers.Serializer):
     
     
 class PedidoConDetallesSerializer(serializers.ModelSerializer):
-    detalles = TbldetallepedidoSerializer(many=True)
+    detalleitems = serializers.SerializerMethodField()
 
     class Meta:
         model = Tblpedido
         fields = ['idpedido', 'idcliente', 'subtotal', 'direcciondestino', 'total', 'igv', 'totaldescuento', 'idcupon', 'idmoneda', 'estado', 'detalles']
+    def get_detalleitems(self, obj):
+        detalleitems = Tbldetallepedido.objects.filter(idpedido=obj)
+        return TbldetallepedidoSerializer(detalleitems, many=True).data
 
     def create(self, validated_data):
         detalles_data = validated_data.pop('detalles')
