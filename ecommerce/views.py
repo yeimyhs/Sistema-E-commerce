@@ -662,7 +662,7 @@ class FleteViewSet(ModelViewSet):
     serializer_class = FleteSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['iddepartamento',"idcategoria__nombre"]
-    filterset_fields = ['precio','activo', 'id', 'idcategoria__nombre',"iddepartamento"]
+    filterset_fields = ['precio','activo', 'id','idcategoria_id', 'idcategoria__nombre',"iddepartamento"]
 
     @action(detail=False, methods=['put'], url_path='matriz-update', serializer_class=DepartamentoSerializer)
     def matriz_actualizacion(self, request, *args, **kwargs):
