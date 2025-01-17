@@ -312,17 +312,7 @@ class TbldetallepedidoSerializer(ModelSerializer):
         model = Tbldetallepedido
         fields = '__all__'
         
-class TblpedidoSerializer(ModelSerializer):
-    detalleitems = serializers.SerializerMethodField()
-    
-    class Meta:
-        #depth = 1
-        model = Tblpedido
-        fields = '__all__'
-        
-    def get_detalleitems(self, obj):
-        detalleitems = Tbldetallepedido.objects.filter(idpedido=obj)
-        return TbldetallepedidoSerializer(detalleitems, many=True).data
+
     
         
 class TblreclaisionSerializer(ModelSerializer):
@@ -439,3 +429,18 @@ class PedidoConDetallesSerializer(serializers.ModelSerializer):
         for detalle_data in detalles_data:
             Tbldetallepedido.objects.create(idpedido=pedido, **detalle_data)
         return pedido
+class TblpedidoSerializer(ModelSerializer):
+    detalleitems = serializers.SerializerMethodField()
+    moneda_detalle =MonedaSerializer(source='idmoneda', read_only=True)
+    cupon_detalle = CuponSerializer(source='idcupon', read_only=True)
+    sede_detalle = TblsedeSerializer(source='idsede', read_only=True)
+    
+    class Meta:
+        #depth = 1
+        model = Tblpedido
+        fields = '__all__'
+    
+    def get_detalleitems(self, obj):
+        detalleitems = Tbldetallepedido.objects.filter(idpedido=obj)
+        return TbldetallepedidoSerializer(detalleitems, many=True).data
+    

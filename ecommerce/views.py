@@ -797,6 +797,7 @@ from rest_framework import filters
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.db.models import Sum, F, DecimalField
+from django.utils.timezone import now 
 
 class TblitemViewSet(ModelViewSet):
     queryset = Tblitem.objects.prefetch_related(
@@ -1298,6 +1299,118 @@ class TblitemViewSet(ModelViewSet):
         # Crear en masa los registros de relaciones
         Tblitemrelacionado.objects.bulk_create(items_relacionados)
 
+    @action(detail=False, methods=['post'], url_path='bulk-upload')
+    @transaction.atomic
+    def bulk_upload(self, request):
+        """
+        Carga masiva de productos desde un archivo Excel.
+        """
+        try:
+            # Verifica si hay un archivo en la solicitud
+            file = request.FILES.get('file')
+            if not file:
+                return Response({"error": "No se ha proporcionado ningún archivo."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            # Leer el archivo Excel (saltando la primera fila de encabezados)
+            df = pd.read_excel(file, header=1)
+
+            # Validar que las columnas requeridas existan
+            required_columns = ["CODIGO(SKU)", "NOMBRE DEL PRODUCTO", "STOCK", "PRECIO"]
+            for column in required_columns:
+                if column not in df.columns:
+                    return Response(
+                        {"error": f"Falta la columna requerida: {column}"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            # Procesar cada fila
+            errors = []
+            for index, row in df.iterrows():
+                try:
+                    # Extraer datos
+                    sku = row["CODIGO(SKU)"]
+                    titulo = row["NOMBRE DEL PRODUCTO"]
+                    stock = row["STOCK"]
+                    precio_normal = row["PRECIO"]
+                    ancho = row.get("ANCHO", None)
+                    otros_datos = {
+                        "marca": row.get("MARCA", ""),
+                        "modelo": row.get("MODELO", ""),
+                        "categoria": row.get("CATEGORIA", ""),
+                        # Agregar más campos según tu modelo
+                    }
+
+                    # Validar datos mínimos
+                    if not sku or not titulo:
+                        raise ValueError("SKU y Título son obligatorios.")
+
+                    # Crear o actualizar el producto
+                    item, created = Tblitem.objects.update_or_create(
+                        codigosku=sku,
+                        defaults={
+                            "titulo": titulo,
+                            "stock": stock,
+                            "precionormal": precio_normal,
+                            "ancho": ancho,
+                            "fechapublicacion": row.get("FECHA PUBLICACION") or now(),
+                            **otros_datos,
+                        },
+                    )
+                except Exception as e:
+                    # Registrar errores por fila
+                    errors.append({
+                        "fila": index + 3,  # +3 porque pandas usa 0-index y hay dos encabezados
+                        "sku": row.get("CODIGO(SKU)", "Desconocido"),
+                        "error": str(e),
+                    })
+
+            # Responder con éxito parcial o total
+            if errors:
+                return Response(
+                    {
+                        "message": "Carga masiva completada con errores.",
+                        "errors": errors,
+                    },
+                    status=status.HTTP_207_MULTI_STATUS,
+                )
+
+            return Response({"message": "Carga masiva completada con éxito."},
+                            status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": f"Error inesperado: {str(e)}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'], url_path='download-template')
+    def download_template(self, request):
+        """
+        Descarga la plantilla para la carga masiva con dos cabeceras.
+        """
+        # Crear un DataFrame con las columnas requeridas
+        columns = [
+            "CODIGO(SKU)", "NOMBRE DEL PRODUCTO", "STOCK", "PRECIO", "MARCA",
+            "MODELO", "CATEGORIA", "ANCHO", "PLIEGUES", "IC/IV", "APLICACIÓN",
+            "SERVICIO", "ARO", "ARO PERMITIDO", "PERFIL", "PRESENTACION",
+            "RANGO VELOCIDAD", "RUNFLAT", "INDICE DE CARGA"
+        ]
+        mandatory = [
+            "SI", "SI", "SI", "SI", "NO",
+            "NO", "NO", "NO", "NO", "NO",
+            "NO", "NO", "NO", "NO", "NO",
+            "NO", "NO", "NO", "NO"
+        ]
+
+        # Crear un DataFrame con las dos filas de encabezado
+        df = pd.DataFrame([mandatory, columns])
+
+        # Convertir el DataFrame a un archivo Excel
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="plantilla_carga_masiva.xlsx"'
+        with pd.ExcelWriter(response, engine='openpyxl') as writer:
+            df.to_excel(writer, header=False, index=False, sheet_name="Plantilla")
+
+        return response
 #------------------------------------------------------------------
 from rest_framework.parsers import MultiPartParser
 import pandas as pd
@@ -1418,6 +1531,8 @@ def upload_xlsx(request):
         return redirect('upload_xlsx')
 
     return render(request, 'upload_xlsx.html')
+
+
 
 def download_template(request):
     # Generar la plantilla

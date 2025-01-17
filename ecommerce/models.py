@@ -363,7 +363,7 @@ class Tblsede(models.Model):
     nombre = models.CharField(max_length=128)
     direccion = models.TextField()
     telefono = models.CharField(max_length=20, verbose_name="Celular o Teléfono")
-
+    linkmaps = models.URLField(blank=True)
     email = models.EmailField(verbose_name="Correo Electrónico")
     imagen = models.ImageField(upload_to='imagenessede/',blank=True, null=True) # This field type is a guess.
 
