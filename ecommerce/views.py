@@ -280,43 +280,27 @@ def check_hash(data, key):
     Verifica la firma del mensaje usando HMAC-SHA256
     """
     supported_sign_algos = ['sha256_hmac']
-    alg = data.get('answer', {}).get('hashAlgorithm')
-    print(alg)
+    alg = data.get('kr-hash-algorithm')
+
+    # Validar el algoritmo de hash
     if alg not in supported_sign_algos:
         return False
-    
-    # Obtener el answer original como string y reemplazar \/ por /
-    kr_answer = json.dumps(data.get('answer', {}).get('clientAnswer', {}), separators=(',', ':'))
-    kr_answer = kr_answer.replace('\\/', '/')
-    print(kr_answer)
-    # Calcular el hash
-    
-    '''    hash_obj = hmac.new(
-        kr_answer.encode('utf-8'),
-        key.encode('utf-8'),
-        hashlib.sha256
-    )'''
 
-    hash_obj = hashlib.pbkdf2_hmac('sha256', 
-                          kr_answer.encode('utf-8'),
-                          key.encode('utf-8'), 
-                          1).hex()
-    
-    hash_obj = hmac.HMAC(key.encode('utf-8'),
+    # Obtener el contenido de 'kr-answer' y asegurarse de que sea una cadena JSON
+    kr_answer = json.dumps(data.get('kr-answer', {}), separators=(',', ':'))
+    kr_answer = kr_answer.replace('\\/', '/')
+
+    # Calcular el hash HMAC-SHA256
+    calculated_hash = hmac.HMAC(key.encode('utf-8'),
                 hashes.SHA256(),
                 backend=default_backend())
-    hash_obj.update(kr_answer.encode('utf-8'))
-    hash_obj = hash_obj.finalize().hex()
-    
-    print(hash_obj)
-    print("-------------",key.encode('utf-8'))
-    calculated_hash = hash_obj#.hexdigest()
-    print(calculated_hash)
-    h = data.get('answer', {}).get('hash')
-    print("========",h)
-    
+    calculated_hash.update(kr_answer.encode('utf-8'))
+    calculated_hash = calculated_hash.finalize().hex()
+
     # Comparar con el hash recibido
-    return calculated_hash == h
+    received_hash = data.get('kr-hash')
+    return calculated_hash == received_hash
+
 
 @csrf_exempt
 def process_payment(request):
@@ -324,7 +308,7 @@ def process_payment(request):
         return HttpResponse('Método no permitido', status=405)
     
     try:
-        # Obtener y decodificar el JSON recibido
+        # Decodificar el JSON recibido
         data = json.loads(request.body.decode('utf-8'))
         
         # PASO 1: verificar la firma con SHA_KEY
@@ -333,13 +317,14 @@ def process_payment(request):
         
         # Preparar la respuesta siguiendo el formato original
         answer = {
-            'kr-hash': data.get('answer', {}).get('hash'),
-            'kr-hash-algorithm': data.get('answer', {}).get('hashAlgorithm'),
-            'kr-answer-type': data.get('answer', {}).get('_type'),
-            'kr-answer': data.get('answer', {}).get('clientAnswer')
+            'message':'OK',
+            'kr-hash': data.get('kr-hash'),
+            'kr-hash-algorithm': data.get('kr-hash-algorithm'),
+            'kr-answer-type': data.get('kr-answer-type'),
+            'kr-answer': data.get('kr-answer')
         }
         
-        # Convertir la respuesta a JSO  N y devolverla
+        # Devolver la respuesta en formato JSON
         return HttpResponse(
             json.dumps(answer),
             content_type='application/json'
@@ -349,7 +334,8 @@ def process_payment(request):
         return HttpResponse('Invalid JSON', status=400)
     except Exception as e:
         return HttpResponse(str(e), status=500)
-
+    
+    
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db.models import Count
