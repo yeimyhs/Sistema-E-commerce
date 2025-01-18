@@ -301,8 +301,12 @@ def check_hash(data, key):
     received_hash = data.get('kr-hash')
     return calculated_hash == received_hash
 
+from django.utils.timezone import now
+from decimal import Decimal
+from django.db import transaction
 
 @csrf_exempt
+@transaction.atomic
 def process_payment(request):
     if request.method != 'POST':
         return HttpResponse('Método no permitido', status=405)
@@ -310,10 +314,10 @@ def process_payment(request):
     try:
         # Decodificar el JSON recibido
         data = json.loads(request.body.decode('utf-8'))
-        
         # PASO 1: verificar la firma con SHA_KEY
         if not check_hash(data, SHA_KEY):
             return HttpResponse('Invalid signature.<br/>', status=400)
+   
         
         # Preparar la respuesta siguiendo el formato original
         answer = {
@@ -323,7 +327,24 @@ def process_payment(request):
             'kr-answer-type': data.get('kr-answer-type'),
             'kr-answer': data.get('kr-answer')
         }
+        transaccion_data = data.get("kr-answer", {}).get("transactions", [])[0]
+        card_details = transaccion_data.get("transactionDetails", {}).get("cardDetails", {})
+        authorization_response = card_details.get("authorizationResponse", {})
+        user_info = transaccion_data.get("transactionDetails", {}).get("userInfo", "DESCONOCIDO")
+        idpedido = data.get("kr-answer", {}).get("orderDetails", {}).get("orderId")
+        # Crear nueva transacción
+        nueva_transaccion = tblTransaccion.objects.create(
+            transaccion_id=transaccion_data.get("uuid"),
+            metodo_pago=transaccion_data.get("paymentMethodType", "DESCONOCIDO"),
+            nombre_en_tarjeta=card_details.get("cardHolderName")or user_info,
+            numero_tarjeta=card_details.get("pan", "XXXX XXXX XXXX XXXX"),
+            monto_total=Decimal(authorization_response.get("amount", 0)) / 100,  # Asumimos que el monto está en centavos
+            fecha_transaccion=authorization_response.get("authorizationDate", now())
+        )
         
+        pedido = Tblpedido.objects.get(idpedido=idpedido)
+        pedido.idtransaccion = nueva_transaccion
+        pedido.save()
         # Devolver la respuesta en formato JSON
         return HttpResponse(
             json.dumps(answer),
@@ -1717,6 +1738,13 @@ class TbldetallecarritoViewSet(ModelViewSet):
     search_fields = ['idproduct__descripcion', 'cantidad']
     filterset_fields = ['activo',  'idproduct_id', 'cantidad', 'isuser_id', 'idcupon_id']
 
+class TbldetallecarritoViewSet(ModelViewSet):
+    queryset = Tbldetallecarrito.objects.filter(activo=True).order_by('pk')
+    serializer_class = TbldetallecarritoSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    search_fields = ['idproduct__descripcion', 'cantidad']
+    filterset_fields = ['activo',  'idproduct_id', 'cantidad', 'isuser_id', 'idcupon_id']
+
 
 
 class TblimagenitemViewSet(ModelViewSet):
@@ -1818,4 +1846,16 @@ class TbldetallepedidoViewSet(ModelViewSet):
     filterset_fields = ['activo', 'idpedido_id', 'idproduct_id', 'cantidad', 'preciototal', 'preciunitario']
 
 
+
+class TransaccionViewSet(ModelViewSet):
+    queryset = tblTransaccion.objects.filter(activo=True).order_by('pk')
+    serializer_class = TransaccionSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    search_fields = ['nombre_en_tarjeta']
+    filterset_fields = [
+    "metodo_pago",
+    "nombre_en_tarjeta",
+    "numero_tarjeta",
+    "monto_total"
+]
 

@@ -232,7 +232,8 @@ class Tblpedido(models.Model):
     razonsocial = models.TextField(blank=True, null=True)
     
     idsede = models.ForeignKey('Tblsede', models.DO_NOTHING, blank=True, null=True)  # Field name made lowercase.
-     
+    idtransaccion = models.ForeignKey('tblTransaccion', models.DO_NOTHING, blank=True, null=True)
+    
     TIPOS_ID_ENVIO = [
         (1, 'Envio a domicilio'),
         (2, 'Recojo en Tienda')
@@ -524,13 +525,25 @@ class Tbldetallepedido(models.Model):
     activo = models.BooleanField(default =1)
     idpedido = models.ForeignKey(Tblpedido, models.DO_NOTHING, db_column='idpedido')
     idproduct = models.ForeignKey(Tblitem, models.DO_NOTHING, db_column='idproduct')
+    idflete = models.ForeignKey(Flete, models.DO_NOTHING, blank=True, null=True)  # Field name made lowercase.
     cantidad = models.IntegerField()
-    preciototal = models.TextField()  # This field type is a guess.
-    preciunitario = models.TextField()  # This field type is a guess.
+    preciototal = models.FloatField() # This field type is a guess.
+    preciunitario = models.FloatField()  # This field type is a guess.
+    preciorebajado = models.FloatField()
 
     class Meta:
         db_table = 'tbldetallepedido'
         unique_together = (('idpedido', 'idproduct'),)
+        
+class tblTransaccion(models.Model):
+    # Identificador único de la transacción
+    transaccion_id = models.CharField(max_length=50, unique=True)
+    metodo_pago = models.CharField(max_length=20)
+    nombre_en_tarjeta = models.CharField(max_length=255)
+    numero_tarjeta = models.CharField(max_length=20)
+    monto_total = models.DecimalField(max_digits=10, decimal_places=2)
+    fecha_transaccion = models.DateTimeField(auto_now_add=True)
+    activo = models.BooleanField(default =1)
 
 class Administracion(models.Model):
     activo = models.BooleanField(default =1)

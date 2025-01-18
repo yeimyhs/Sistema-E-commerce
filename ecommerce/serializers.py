@@ -432,13 +432,19 @@ class TbldetallepedidoSerializer(ModelSerializer):
         #depth = 1
         model = Tbldetallepedido
         fields = '__all__'
-        
+
+class TransaccionSerializer(ModelSerializer):
+    class Meta:
+        #depth = 1
+        model = tblTransaccion
+        fields = '__all__'     
         
 class TblpedidoSerializer(ModelSerializer):
     detalleitems = serializers.SerializerMethodField()
     moneda_detalle =MonedaSerializer(source='idmoneda', read_only=True)
     cupon_detalle = CuponSerializer(source='idcupon', read_only=True)
     sede_detalle = TblsedeSerializer(source='idsede', read_only=True)
+    transaccion_detalle = TransaccionSerializer(source='idtransaccion', read_only=True)
     
     class Meta:
         #depth = 1
