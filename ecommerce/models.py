@@ -525,7 +525,8 @@ class Tbldetallepedido(models.Model):
     activo = models.BooleanField(default =1)
     idpedido = models.ForeignKey(Tblpedido, models.DO_NOTHING, db_column='idpedido')
     idproduct = models.ForeignKey(Tblitem, models.DO_NOTHING, db_column='idproduct')
-    idflete = models.ForeignKey(Flete, models.DO_NOTHING, blank=True, null=True)  # Field name made lowercase.
+    #idflete = models.ForeignKey(Flete, models.DO_NOTHING, blank=True, null=True)  # Field name made lowercase.
+    precioflete = models.DecimalField(max_digits=20, decimal_places=2, blank=True, null=True)  # This field type is a guess.
     cantidad = models.IntegerField()
     preciototal = models.FloatField() # This field type is a guess.
     preciunitario = models.FloatField()  # This field type is a guess.
