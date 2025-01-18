@@ -595,7 +595,7 @@ class RegisterAPI(generics.GenericAPIView):
 
 
 class AdministracionViewSet(ModelViewSet):
-    queryset = Administracion.objects.order_by('pk')
+    queryset = Administracion.objects.filter(activo=True).order_by('pk')
     serializer_class = AdministracionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombreempresa', 'ruc', 'telefono', 'idmoneda__nombre']
@@ -604,7 +604,7 @@ class AdministracionViewSet(ModelViewSet):
 
 
 class CuponViewSet(ModelViewSet):
-    queryset = Cupon.objects.order_by('pk')
+    queryset = Cupon.objects.filter(activo=True).order_by('pk')
     serializer_class = CuponSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['descripcion', 'estado', 'fechavigencia']
@@ -613,7 +613,7 @@ class CuponViewSet(ModelViewSet):
 
 
 class MarcaViewSet(ModelViewSet):
-    queryset = Marca.objects.order_by('pk')
+    queryset = Marca.objects.filter(activo=True).order_by('pk')
     serializer_class = MarcaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre']
@@ -621,7 +621,7 @@ class MarcaViewSet(ModelViewSet):
 
 
 class TblreclamacionViewSet(ModelViewSet):
-    queryset = Tblreclamacion.objects.order_by('pk')
+    queryset = Tblreclamacion.objects.filter(activo=True).order_by('pk')
     serializer_class = TblreclaisionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre']
@@ -630,21 +630,21 @@ class TblreclamacionViewSet(ModelViewSet):
 
 
 class MarcaViewSet(ModelViewSet):
-    queryset = Marca.objects.order_by('pk')
+    queryset = Marca.objects.filter(activo=True).order_by('pk')
     serializer_class = MarcaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre']
     filterset_fields = ['activo', 'id', 'nombre']
 
 class TblcategoriaViewSet(ModelViewSet):
-    queryset = Tblcategoria.objects.order_by('pk')
+    queryset = Tblcategoria.objects.filter(activo=True).order_by('pk')
     serializer_class = TblcategoriaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre']
     filterset_fields = ['activo', 'id', 'nombre']
 
 class FleteViewSet(ModelViewSet):
-    queryset = Flete.objects.order_by('pk')
+    queryset = Flete.objects.filter(activo=True).order_by('pk')
     serializer_class = FleteSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['iddepartamento',"idcategoria__nombre"]
@@ -718,7 +718,7 @@ class FleteViewSet(ModelViewSet):
 
 
 class TblmodeloViewSet(ModelViewSet):
-    queryset = Tblmodelo.objects.order_by('pk')
+    queryset = Tblmodelo.objects.filter(activo=True).order_by('pk')
     serializer_class = TblmodeloSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre']
@@ -728,7 +728,7 @@ class TblmodeloViewSet(ModelViewSet):
 
 
 class MonedaViewSet(ModelViewSet):
-    queryset = Moneda.objects.order_by('pk')
+    queryset = Moneda.objects.filter(activo=True).order_by('pk')
     serializer_class = MonedaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre']
@@ -737,7 +737,7 @@ class MonedaViewSet(ModelViewSet):
 
 
 class PromocionViewSet(ModelViewSet):
-    queryset = Promocion.objects.order_by('pk')
+    queryset = Promocion.objects.filter(activo=True).order_by('pk')
     serializer_class = PromocionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = [ 'estado']
@@ -745,7 +745,7 @@ class PromocionViewSet(ModelViewSet):
 
 
 class TblcarritoViewSet(ModelViewSet):
-    queryset = Tblcarrito.objects.order_by('pk')
+    queryset = Tblcarrito.objects.filter(activo=True).order_by('pk')
     serializer_class = TblcarritoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['idusuario__nombreusuario', 'preciototal']
@@ -1303,7 +1303,7 @@ class TblitemViewSet(ModelViewSet):
     @transaction.atomic
     def bulk_upload(self, request):
         """
-        Carga masiva de productos desde un archivo Excel.
+        Carga masiva de productos desde un archivo Excel con validación de dependencias entre marca y modelo.
         """
         try:
             # Verifica si hay un archivo en la solicitud
@@ -1316,7 +1316,7 @@ class TblitemViewSet(ModelViewSet):
             df = pd.read_excel(file, header=1)
 
             # Validar que las columnas requeridas existan
-            required_columns = ["CODIGO(SKU)", "NOMBRE DEL PRODUCTO", "STOCK", "PRECIO"]
+            required_columns = ["CODIGO(SKU)", "NOMBRE DEL PRODUCTO", "STOCK", "PRECIO", "MARCA", "MODELO"]
             for column in required_columns:
                 if column not in df.columns:
                     return Response(
@@ -1326,6 +1326,7 @@ class TblitemViewSet(ModelViewSet):
 
             # Procesar cada fila
             errors = []
+            created_or_updated_items = []
             for index, row in df.iterrows():
                 try:
                     # Extraer datos
@@ -1333,20 +1334,39 @@ class TblitemViewSet(ModelViewSet):
                     titulo = row["NOMBRE DEL PRODUCTO"]
                     stock = row["STOCK"]
                     precio_normal = row["PRECIO"]
+                    marca_id = row["MARCA"]
+                    modelo_id = row["MODELO"]
                     ancho = row.get("ANCHO", None)
-                    otros_datos = {
-                        "marca": row.get("MARCA", ""),
-                        "modelo": row.get("MODELO", ""),
-                        "categoria": row.get("CATEGORIA", ""),
-                        # Agregar más campos según tu modelo
-                    }
+                    categoria_id = row.get("CATEGORIA", None)  # ID de la categoría
 
                     # Validar datos mínimos
-                    if not sku or not titulo:
-                        raise ValueError("SKU y Título son obligatorios.")
+                    if not sku or not titulo or not marca_id or not modelo_id:
+                        raise ValueError("SKU, Título, Marca y Modelo son obligatorios.")
 
+                    # Validar que la marca existemarc
+                    
+                    try:
+                        marca_instance = Marca.objects.get(id=marca_id)
+                    except Marca.DoesNotExist:
+                        raise ValueError(f"La marca con ID {marca_id} no existe.")
+
+                    # Validar que el modelo existe y pertenece a la marca
+                    try:
+                        modelo_instance = Tblmodelo.objects.get(id=modelo_id, idmarca=marca_id)
+                    except Tblmodelo.DoesNotExist:
+                        raise ValueError(
+                            f"El modelo con ID {modelo_id} no existe o no pertenece a la marca con ID {marca_id}."
+                        )
+                    try:
+                        categoria_instance = Tblcategoria.objects.get(id=categoria_id)
+                    except Tblcategoria.DoesNotExist:
+                        raise ValueError(f"La categoría con ID {categoria_id} no existe.")
+                    
+                    otros_datos = {
+                                "ancho": ancho,
+                            }
                     # Crear o actualizar el producto
-                    item, created = Tblitem.objects.update_or_create(
+                    item, created =  Tblitem.objects.update_or_create(
                         codigosku=sku,
                         defaults={
                             "titulo": titulo,
@@ -1354,9 +1374,21 @@ class TblitemViewSet(ModelViewSet):
                             "precionormal": precio_normal,
                             "ancho": ancho,
                             "fechapublicacion": row.get("FECHA PUBLICACION") or now(),
+                            "destacado": True,
+                            "nuevoproducto": False,
+                            "estado": 1,
+                            "idmodelo": modelo_instance,  # Asignar el modelo validado
                             **otros_datos,
                         },
                     )
+                    
+                    item.categoria_relacionada.all().delete()  # Limpiar categorías existentes
+                    tblitemcategoria.objects.create(iditem=item, idcategoria=categoria_instance)
+
+
+                    # Agregar el producto creado o actualizado a la lista
+                    created_or_updated_items.append(item)
+
                 except Exception as e:
                     # Registrar errores por fila
                     errors.append({
@@ -1371,12 +1403,15 @@ class TblitemViewSet(ModelViewSet):
                     {
                         "message": "Carga masiva completada con errores.",
                         "errors": errors,
+                        "items": TblitemSerializer(created_or_updated_items, many=True).data,
                     },
                     status=status.HTTP_207_MULTI_STATUS,
                 )
 
-            return Response({"message": "Carga masiva completada con éxito."},
-                            status=status.HTTP_200_OK)
+            return Response({
+                "message": "Carga masiva completada con éxito.",
+                "items": TblitemSerializer(created_or_updated_items, many=True).data,
+            }, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response({"error": f"Error inesperado: {str(e)}"},
@@ -1566,7 +1601,7 @@ def download_template(request):
 
 
 class TblnoticiaViewSet(ModelViewSet):
-    queryset = Tblnoticia.objects.order_by('pk')
+    queryset = Tblnoticia.objects.filter(activo=True).order_by('pk')
     serializer_class = TblnoticiaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['descripcion', 'estado']
@@ -1574,11 +1609,11 @@ class TblnoticiaViewSet(ModelViewSet):
 
 
 class TblsedeViewSet(ModelViewSet):
-    queryset = Tblsede.objects.order_by('pk')
+    queryset = Tblsede.objects.filter(activo=True).order_by('pk')
     serializer_class = TblsedeSerializer
 
 class TblpedidoViewSet(ModelViewSet):
-    queryset = Tblpedido.objects.order_by('pk')
+    queryset = Tblpedido.objects.filter(activo=True).order_by('pk')
     serializer_class = TblpedidoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['idcliente__nombreusuario', 'total', 'estado']
@@ -1608,7 +1643,7 @@ class TblpedidoViewSet(ModelViewSet):
         return Response(pedido_serializer.data, status=status.HTTP_201_CREATED)
 
 class TblCarruselViewSet(ModelViewSet):
-    queryset = TblCarrusel.objects.order_by('pk')
+    queryset = TblCarrusel.objects.filter(activo=True).order_by('pk')
     serializer_class = TblCarruselSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['descripcion', 'estado']
@@ -1617,7 +1652,7 @@ class TblCarruselViewSet(ModelViewSet):
 
 
 class TblusuarioViewSet(ModelViewSet):
-    queryset = CustomUser.objects.order_by('pk')
+    queryset = CustomUser.objects.filter(activo=True).order_by('pk')
     serializer_class = CustomUserSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombreusuario', 'nombre', 'apellidos', 'estado']
@@ -1626,7 +1661,7 @@ class TblusuarioViewSet(ModelViewSet):
 
 
 class TipocambioViewSet(ModelViewSet):
-    queryset = Tipocambio.objects.order_by('pk')
+    queryset = Tipocambio.objects.filter(activo=True).order_by('pk')
     serializer_class = TipocambioSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['tipocambio', 'idmoneda__nombre', 'fechacreacion', 'fechamodificacion']
@@ -1636,7 +1671,7 @@ class TipocambioViewSet(ModelViewSet):
 
 
 class ValoracionViewSet(ModelViewSet):
-    queryset = Valoracion.objects.order_by('pk')
+    queryset = Valoracion.objects.filter(activo=True).order_by('pk')
     serializer_class = ValoracionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['comentario', 'estrellas']
@@ -1646,7 +1681,7 @@ class ValoracionViewSet(ModelViewSet):
 
 
 class TbldetallecarritoViewSet(ModelViewSet):
-    queryset = Tbldetallecarrito.objects.order_by('pk')
+    queryset = Tbldetallecarrito.objects.filter(activo=True).order_by('pk')
     serializer_class = TbldetallecarritoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['idproduct__descripcion', 'cantidad']
@@ -1655,7 +1690,7 @@ class TbldetallecarritoViewSet(ModelViewSet):
 
 
 class TblimagenitemViewSet(ModelViewSet):
-    queryset = Tblimagenitem.objects.order_by('pk')
+    queryset = Tblimagenitem.objects.filter(activo=True).order_by('pk')
     serializer_class = TblimagenitemSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['imagen', 'idproduct__descripcion']
@@ -1685,14 +1720,14 @@ class MultipleImagenItemView(APIView):
     
     
 class TblitemclaseViewSet(ModelViewSet):
-    queryset = Tblitemclase.objects.order_by('pk')
+    queryset = Tblitemclase.objects.filter(activo=True).order_by('pk')
     serializer_class = TblitemclaseSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre']
     filterset_fields = ['activo', 'idclase', 'nombre']
 
 class tblitemcuponSerializerViewSet(ModelViewSet):
-    queryset = tblitemcupon.objects.order_by('pk')
+    queryset = tblitemcupon.objects.filter(activo=True).order_by('pk')
     serializer_class = tblitemcuponSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre']
@@ -1701,7 +1736,7 @@ class tblitemcuponSerializerViewSet(ModelViewSet):
 
 
 class tblitemclasevinculoViewSet(ModelViewSet):
-    queryset = tblitemclasevinculo.objects.order_by('pk')
+    queryset = tblitemclasevinculo.objects.filter(activo=True).order_by('pk')
     serializer_class = TblitemclasevinculoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = [ 'propiedad', 'idclase__nombre']
@@ -1710,7 +1745,7 @@ class tblitemclasevinculoViewSet(ModelViewSet):
 
 
 class TblitempropiedadViewSet(ModelViewSet):
-    queryset = Tblitempropiedad.objects.order_by('pk')
+    queryset = Tblitempropiedad.objects.filter(activo=True).order_by('pk')
     serializer_class = TblitempropiedadSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre', 'idclase__nombre']
@@ -1728,7 +1763,7 @@ class TblitempropiedadViewSet(ModelViewSet):
 
 
 class TblitemrelacionadoViewSet(ModelViewSet):
-    queryset = Tblitemrelacionado.objects.order_by('pk')
+    queryset = Tblitemrelacionado.objects.filter(activo=True).order_by('pk')
     serializer_class = TblitemrelacionadoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['item_id__descripcion']
@@ -1736,7 +1771,7 @@ class TblitemrelacionadoViewSet(ModelViewSet):
 
 
 class tblitemcategoriaViewSet(ModelViewSet):
-    queryset = tblitemcategoria.objects.order_by('pk')
+    queryset = tblitemcategoria.objects.filter(activo=True).order_by('pk')
     serializer_class = tblitemcategoriaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['iditem_id__descripcion']
@@ -1746,7 +1781,7 @@ class tblitemcategoriaViewSet(ModelViewSet):
 
 
 class TbldetallepedidoViewSet(ModelViewSet):
-    queryset = Tbldetallepedido.objects.order_by('pk')
+    queryset = Tbldetallepedido.objects.filter(activo=True).order_by('pk')
     serializer_class = TbldetallepedidoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['idpedido__id', 'idproduct__descripcion']
