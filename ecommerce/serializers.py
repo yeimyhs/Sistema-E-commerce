@@ -306,12 +306,7 @@ class TblitemrelacionadoSerializer(ModelSerializer):
         super().__init__(*args, **kwargs)
         self.fields['item_detalle'] = TblitemBasicoSerializer(source='item', read_only=True)
 
-class TbldetallepedidoSerializer(ModelSerializer):
-    class Meta:
-        #depth = 1
-        model = Tbldetallepedido
-        fields = '__all__'
-        
+
 
     
         
@@ -429,6 +424,16 @@ class PedidoConDetallesSerializer(serializers.ModelSerializer):
         for detalle_data in detalles_data:
             Tbldetallepedido.objects.create(idpedido=pedido, **detalle_data)
         return pedido
+    
+    
+class TbldetallepedidoSerializer(ModelSerializer):
+    item_detalle = TblitemSerializer(source='idproduct', read_only=True)
+    class Meta:
+        #depth = 1
+        model = Tbldetallepedido
+        fields = '__all__'
+        
+        
 class TblpedidoSerializer(ModelSerializer):
     detalleitems = serializers.SerializerMethodField()
     moneda_detalle =MonedaSerializer(source='idmoneda', read_only=True)

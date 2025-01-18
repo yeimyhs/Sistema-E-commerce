@@ -1385,7 +1385,37 @@ class TblitemViewSet(ModelViewSet):
                     item.categoria_relacionada.all().delete()  # Limpiar categorías existentes
                     tblitemcategoria.objects.create(iditem=item, idcategoria=categoria_instance)
 
-
+                    vinculos_data = {
+                                "PLIEGUES": row.get("PLIEGUES", None),
+                                "IC_IV": row.get("IC/IV", None),
+                                "APLICACION": row.get("APLICACIÓN", None),
+                                "SERVICIO": row.get("SERVICIO", None),
+                                "ARO": row.get("ARO", None),
+                                "ARO_PERMITIDO": row.get("ARO PERMITIDO", None),
+                                "PERFIL": row.get("PERFIL", None),
+                                "PRESENTACION": row.get("PRESENTACION", None),
+                                "RANGO_VELOCIDAD": row.get("RANGO VELOCIDAD", None),
+                                "RUNFLAT": row.get("RUNFLAT", None),
+                                "INDICE_CARGA": row.get("INDICE DE CARGA", None),
+                            }
+                    
+        # Crear nuevos vínculos
+                    for key, value in vinculos_data.items():
+                        if value:
+                            # Buscar la clase por nombre
+                            clase_instance, _ = Tblitemclase.objects.get_or_create(
+                                nombre=key,
+                                defaults={"activo": True},
+                            )
+                            # Crear o actualizar el vínculo
+                            tblitemclasevinculo.objects.update_or_create(
+                                iditem=item,
+                                idclase=clase_instance,
+                                defaults={
+                                    "propiedad": value,
+                                    "activo": True,
+                                },
+                            )
                     # Agregar el producto creado o actualizado a la lista
                     created_or_updated_items.append(item)
 
