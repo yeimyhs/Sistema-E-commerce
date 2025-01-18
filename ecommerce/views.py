@@ -629,10 +629,16 @@ class CuponViewSet(ModelViewSet):
     serializer_class = CuponSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['descripcion', 'estado', 'fechavigencia']
-    filterset_fields = ['activo', 'idcupon', 'cantidaddescuento', 'estado', 'fechavigencia', 'fechacreacion', 'fechamodificacion']
-
-
-
+    filterset_fields = {
+    'activo': ['exact'],
+    'idcupon': ['exact'],
+    'cantidaddescuento': ['exact'],
+    'estado': ['exact'],
+    'fechavigencia': ['exact'],
+    'fechacreacion': ['exact'],
+    'fechamodificacion': ['exact'],
+    'codigo': ['exact'],  # Búsqueda literal
+}
 class MarcaViewSet(ModelViewSet):
     queryset = Marca.objects.filter(activo=True).order_by('pk')
     serializer_class = MarcaSerializer
