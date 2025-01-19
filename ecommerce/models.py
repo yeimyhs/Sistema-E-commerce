@@ -250,7 +250,7 @@ class Tblpedido(models.Model):
     idpedido = models.BigAutoField(primary_key=True)
     idcliente = models.ForeignKey(settings.AUTH_USER_MODEL, models.DO_NOTHING, db_column='idCliente')  # Field name made lowercase.
     subtotal = models.FloatField()  # This field type is a guess.
-    direcciondestino = models.TextField()
+    direcciondestino = models.TextField(blank=True, null=True)
     total = models.FloatField()  # This field type is a guess.
     igv = models.FloatField(blank=True, null=True)
     totaldescuento = models.FloatField()
