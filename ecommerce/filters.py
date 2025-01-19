@@ -1,5 +1,5 @@
 import django_filters
-from .models import Tblitem, tblitemclasevinculo, Tblitemclase, Tblitempropiedad
+from .models import Tblitem, tblitemclasevinculo, Tblitemclase, Tblitempropiedad, Tblpedido
 
 import django_filters
 
@@ -121,4 +121,18 @@ class DateTimeIntervalFilter(BaseFilterBackend):
             return queryset.filter(**{f'{field_name}__lte': end_date})
 
         print("No se aplicó ningún filtro porque no se especificaron fechas.")
+        return queryset
+    
+    
+
+class TblpedidoFilter(filters.FilterSet):
+    sin_transaccion = filters.BooleanFilter(method='filter_sin_transaccion')
+
+    class Meta:
+        model = Tblpedido
+        fields = ['activo', 'idpedido', 'idcliente_id', 'subtotal', 'total', 'igv', 'totaldescuento', 'idcupon_id', 'idmoneda_id', 'idtransaccion_id', 'estado', 'fechacreacion', 'fechamodificacion']
+
+    def filter_sin_transaccion(self, queryset, name, value):
+        if value:
+            return queryset.filter(idtransaccion__isnull=True)
         return queryset

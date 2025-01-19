@@ -1670,11 +1670,25 @@ class TblsedeViewSet(ModelViewSet):
     serializer_class = TblsedeSerializer
 
 class TblpedidoViewSet(ModelViewSet):
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'sin_transaccion',
+                openapi.IN_QUERY,
+                description="Filtra los pedidos sin transacción asignada",
+                type=openapi.TYPE_BOOLEAN
+            )
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+    
+    
     queryset = Tblpedido.objects.filter(activo=True).order_by('pk')
     serializer_class = TblpedidoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['idcliente__nombreusuario', 'total', 'estado']
-    filterset_fields = ['activo', 'idpedido', 'idcliente_id', 'subtotal', 'total', 'igv', 'totaldescuento', 'idcupon_id', 'idmoneda_id', 'estado', 'fechacreacion', 'fechamodificacion']
+    filterset_class = TblpedidoFilter
     def create(self, request, *args, **kwargs):
         """
         Sobrescribe el método create para procesar detalles del pedido.
