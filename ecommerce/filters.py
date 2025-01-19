@@ -135,4 +135,6 @@ class TblpedidoFilter(filters.FilterSet):
     def filter_sin_transaccion(self, queryset, name, value):
         if value:
             return queryset.filter(idtransaccion__isnull=True)
+        elif value == False:
+            return queryset.filter(idtransaccion__isnull=False)
         return queryset
