@@ -239,11 +239,11 @@ class Tblpedido(models.Model):
         (2, 'Recojo en Tienda')
     ]
     tipoenvio = models.IntegerField(
-        choices=TIPOS_ID_ENVIO
+        choices=TIPOS_ID_ENVIO, blank=True, null=True
     )
-    departamento = models.CharField(max_length=250)
-    provincia = models.CharField(max_length=250)
-    distrito = models.CharField(max_length=250)
+    departamento = models.CharField(max_length=250, blank=True, null=True)
+    provincia = models.CharField(max_length=250, blank=True, null=True)
+    distrito = models.CharField(max_length=250, blank=True, null=True)
     #direccion = models.CharField(max_length=100, verbose_name="Nombre")
     
     
