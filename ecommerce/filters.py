@@ -70,61 +70,58 @@ def parse_and_adjust_date(date_string, is_start_date=True):
     """
     Ajusta una fecha dada según sea la fecha inicial o final y la convierte a UTC usando Django.
     """
-    # Detectar el formato de la fecha
-    if "T" in date_string:
-        date_format = "%Y-%m-%dT%H:%M:%S"
-    else:
-        date_format = "%Y-%m-%d"
+    date_format = "%Y-%m-%d"  # Formato de fecha esperado
 
     try:
         date_obj = datetime.strptime(date_string, date_format)
     except ValueError:
-        date_obj = datetime.strptime(date_string, "%Y-%m-%d")
+        raise ValueError(f"La fecha {date_string} no tiene el formato correcto {date_format}.")
 
-    # Ajustar para la fecha inicial o final
+    # Ajustar para la fecha inicial o final del día
     if is_start_date:
         date_obj = date_obj.replace(hour=0, minute=0, second=0)
     else:
         date_obj = date_obj.replace(hour=23, minute=59, second=59)
 
     # Asegurarnos de que la fecha sea timezone-aware
-    return make_aware(date_obj).astimezone(utc)
+    return make_aware(date_obj, timezone.utc)
+
 class DateTimeIntervalFilter(BaseFilterBackend):
+    """
+    Filtro personalizado para filtrar por intervalos de tiempo en campos DateTimeField.
+    """
     def filter_queryset(self, request, queryset, view):
         # Obtener los parámetros de la URL
         start_date = request.GET.get('start_date')
         end_date = request.GET.get('end_date')
-        field_name = request.GET.get('field_name')  # Nombre del campo a filtrar
-        
-        print(f"Parámetros recibidos: start_date={start_date}, end_date={end_date}, field_name={field_name}")
+        field_name = request.GET.get('field_name', 'fechacreacion')  # Campo predeterminado
 
         # Validar los parámetros necesarios
-        if not field_name or not hasattr(queryset.model, field_name):
-            print("Campo no válido o no especificado. Filtro no aplicado.")
+        if not hasattr(queryset.model, field_name):
+            print(f"El campo {field_name} no existe en el modelo {queryset.model.__name__}.")
             return queryset
 
-        # Validar y ajustar las fechas
+        # Ajustar las fechas si están disponibles
         start_date = parse_and_adjust_date(start_date, is_start_date=True) if start_date else None
         end_date = parse_and_adjust_date(end_date, is_start_date=False) if end_date else None
 
         print(f"Fechas ajustadas: start_date={start_date}, end_date={end_date}")
 
-        # Asegurarnos de que el campo es un DateTimeField
+        # Verificar si el campo especificado es de tipo DateTimeField
         field = queryset.model._meta.get_field(field_name)
         if not isinstance(field, models.DateTimeField):
             print(f"El campo {field_name} no es un DateTimeField. Filtro no aplicado.")
             return queryset
 
-        # Aplicar el filtro si las fechas son válidas
+        # Filtrar el queryset según las fechas
         if start_date and end_date:
             return queryset.filter(
-                Q(**{f'{field_name}__gte': start_date}) &
-                Q(**{f'{field_name}__lte': end_date})
+                Q(**{f'{field_name}__gte': start_date}) & Q(**{f'{field_name}__lte': end_date})
             )
         elif start_date:
-            return queryset.filter(**{f'{field_name}__gte': start_date})
+            return queryset.filter(Q(**{f'{field_name}__gte': start_date}))
         elif end_date:
-            return queryset.filter(**{f'{field_name}__lte': end_date})
+            return queryset.filter(Q(**{f'{field_name}__lte': end_date}))
 
         print("No se aplicó ningún filtro porque no se especificaron fechas.")
         return queryset

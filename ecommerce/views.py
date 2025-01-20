@@ -784,7 +784,7 @@ class TblmodeloViewSet(ModelViewSet):
 class MonedaViewSet(ModelViewSet):
     queryset = Moneda.objects.filter(activo=True).order_by('pk')
     serializer_class = MonedaSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
     search_fields = ['nombre']
     filterset_fields = ['activo', 'idmoneda', 'nombre', 'estado', 'fechacreacion', 'fechamodificacion']
 
@@ -1763,7 +1763,7 @@ class TblusuarioViewSet(ModelViewSet):
     queryset = CustomUser.objects.filter(activo=True).order_by('pk')
     serializer_class = CustomUserSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
-    search_fields = ['nombreusuario', 'nombre', 'apellidos', 'estado']
+    search_fields = ['nombreusuario', 'nombre', 'apellidos', 'estado','email']
     filterset_fields = ['activo', 'nombreusuario', 'nombre', 'apellidos','departamento','provincia','distrito','telefono', 'estado', 'email_verified_at', 'direccion', 'fechacreacion', 'fechamodificacion','is_staff']
 
 
