@@ -22,6 +22,7 @@ from knox.models import AuthToken
 
 from .models import *
 from .serializers import *
+from .filters import *
 
 from rest_framework.decorators import action
 from rest_framework import filters
@@ -51,6 +52,9 @@ from django.http import JsonResponse
 from rest_framework.decorators import api_view
 from .models import Tblitem
 from django.conf import settings
+
+
+from rest_framework.generics import ListAPIView
 
 rarfile.UNRAR_TOOL = r"C:\Program Files\WinRAR\UnRAR.exe"
 @csrf_exempt
@@ -598,7 +602,27 @@ class UserInfoView(APIView):
         serializer = CustomUserSerializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+class UserPedidosView(ModelViewSet):
+    """
+    ViewSet para manejar pedidos con soporte para búsquedas, filtros y ordenamiento.
+    """
+    permission_classes = [IsAuthenticated]
+    #queryset = Tblpedido.objects.filter(activo=True).order_by('pk')  # Filtra solo pedidos activos
+    serializer_class = TblpedidoSerializer
 
+    # Configuración de filtros, búsquedas y ordenamiento
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    search_fields = ['idcliente__nombreusuario', 'total', 'estado']
+ # Permite ordenar por fecha o precio
+    filterset_class = TblpedidoFilter  # Usar un filtro personalizado
+
+    def get_queryset(self):
+        # Filtrar los pedidos por el usuario autenticado
+        user = self.request.user
+        return Tblpedido.objects.filter(idcliente=user, activo=True).order_by('pk')
+        
+      
+    
 class RegisterAPI(generics.GenericAPIView):
     serializer_class = RegisterSerializer
 
