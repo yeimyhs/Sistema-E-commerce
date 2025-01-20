@@ -645,7 +645,7 @@ class RegisterAPI(generics.GenericAPIView):
 class AdministracionViewSet(ModelViewSet):
     queryset = Administracion.objects.filter(activo=True).order_by('pk')
     serializer_class = AdministracionSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
     search_fields = ['nombreempresa', 'ruc', 'telefono', 'idmoneda__nombre']
     filterset_fields = ['activo', 'nombreempresa', 'ruc', 'telefono', 'igv', 'idmoneda_id', 'idmoneda__nombre', 'fechacreacion', 'fechamodificacion']
 
@@ -654,7 +654,7 @@ class AdministracionViewSet(ModelViewSet):
 class CuponViewSet(ModelViewSet):
     queryset = Cupon.objects.filter(activo=True).order_by('pk')
     serializer_class = CuponSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
     search_fields = ['descripcion', 'estado', 'fechavigencia']
     filterset_fields = {
     'activo': ['exact'],
@@ -677,7 +677,7 @@ class MarcaViewSet(ModelViewSet):
 class TblreclamacionViewSet(ModelViewSet):
     queryset = Tblreclamacion.objects.filter(activo=True).order_by('pk')
     serializer_class = TblreclaisionSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
     search_fields = ['nombre']
     filterset_fields = '__all__'
 
@@ -1697,7 +1697,7 @@ def download_template(request):
 class TblnoticiaViewSet(ModelViewSet):
     queryset = Tblnoticia.objects.filter(activo=True).order_by('pk')
     serializer_class = TblnoticiaSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
     search_fields = ['descripcion', 'estado']
     filterset_fields = ['activo', 'idnoticia', 'descripcion', 'estado', 'fechacreacion', 'fechamodificacion']
 
@@ -1723,7 +1723,7 @@ class TblpedidoViewSet(ModelViewSet):
     
     queryset = Tblpedido.objects.filter(activo=True).order_by('pk')
     serializer_class = TblpedidoSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
     search_fields = ['idcliente__nombreusuario', 'total', 'estado']
     filterset_class = TblpedidoFilter
     def create(self, request, *args, **kwargs):
@@ -1753,7 +1753,7 @@ class TblpedidoViewSet(ModelViewSet):
 class TblCarruselViewSet(ModelViewSet):
     queryset = TblCarrusel.objects.filter(activo=True).order_by('pk')
     serializer_class = TblCarruselSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
     search_fields = ['descripcion', 'estado']
     filterset_fields = ['activo', 'id',  'descripcion', 'estado', 'fechacreacion', 'fechamodificacion']
 

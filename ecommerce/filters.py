@@ -18,6 +18,10 @@ class TblitemclasepropiedadFilter(django_filters.FilterSet):
 from django_filters import rest_framework as filters
 
 class TblitemFilter(filters.FilterSet):
+    start_date = filters.DateFilter(field_name='fechacreacion', lookup_expr='gte')  # Filtro por fecha de creación desde
+    end_date = filters.DateFilter(field_name='fechacreacion', lookup_expr='lte')  # Filtro por fecha de creación hasta
+    
+
     clase_nombre = filters.CharFilter(field_name='clases_propiedades__idclase__nombre', lookup_expr='icontains')
     propiedad_nombre = filters.CharFilter(field_name='clases_propiedades__propiedad', lookup_expr='icontains')
     titulo = filters.CharFilter(field_name='titulo', lookup_expr='icontains')  # Filtro por título
