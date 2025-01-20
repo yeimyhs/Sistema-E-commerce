@@ -1698,7 +1698,7 @@ class TblnoticiaViewSet(ModelViewSet):
     queryset = Tblnoticia.objects.filter(activo=True).order_by('pk')
     serializer_class = TblnoticiaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
-    search_fields = ['descripcion', 'estado']
+    search_fields = ['titulo','descripcion', 'estado']
     filterset_fields = ['activo', 'idnoticia', 'descripcion', 'estado', 'fechacreacion', 'fechamodificacion']
 
 
@@ -1762,7 +1762,7 @@ class TblCarruselViewSet(ModelViewSet):
 class TblusuarioViewSet(ModelViewSet):
     queryset = CustomUser.objects.filter(activo=True).order_by('pk')
     serializer_class = CustomUserSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
     search_fields = ['nombreusuario', 'nombre', 'apellidos', 'estado','email']
     filterset_fields = ['activo', 'nombreusuario', 'nombre', 'apellidos','departamento','provincia','distrito','telefono', 'estado', 'email_verified_at', 'direccion', 'fechacreacion', 'fechamodificacion','is_staff']
 
