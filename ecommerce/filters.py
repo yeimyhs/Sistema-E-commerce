@@ -30,6 +30,8 @@ class TblitemFilter(filters.FilterSet):
     preciorebajado_max = filters.NumberFilter(field_name='preciorebajado', lookup_expr='lte')  # Precio rebajado máximo
     precionormal_min = filters.NumberFilter(field_name='precionormal', lookup_expr='gte')  # Precio normal mínimo
     precionormal_max = filters.NumberFilter(field_name='precionormal', lookup_expr='lte')  # Precio normal máximo
+    fechacreacion_after = filters.DateFilter(field_name='fechacreacion', lookup_expr='gte')  # Fecha publicación después
+    fechacreacion_before = filters.DateFilter(field_name='fechacreacion', lookup_expr='lte')  # Fecha publicación antes
     fechapublicacion_before = filters.DateFilter(field_name='fechapublicacion', lookup_expr='lte')  # Fecha publicación antes
     fechapublicacion_after = filters.DateFilter(field_name='fechapublicacion', lookup_expr='gte')  # Fecha publicación después
     peso_min = filters.NumberFilter(field_name='peso', lookup_expr='gte')  # Peso mínimo

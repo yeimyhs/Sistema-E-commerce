@@ -507,8 +507,8 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
         id_marca_list = data.get("id_marca", [])
         id_modelo_list = data.get("id_modelo", [])
         clase_categoria = data.get("clase_categoria", [])
-
-        # Aplicar los filtros si están presentes
+        ancho_list = data.get("ancho", [])
+        
         if id_categoria:
             query &= Q(categoria_relacionada=id_categoria)
 
@@ -520,7 +520,10 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
 
         if id_modelo_list:
             query &= Q(idmodelo__in=id_modelo_list)
-
+            
+        if ancho_list:
+            query &= Q(ancho__in=ancho_list)
+            
         if clase_categoria:
             subquery = Q()
             for item in clase_categoria:
@@ -862,8 +865,12 @@ class TblitemViewSet(ModelViewSet):
     search_fields = [
         'codigosku',       # Buscamos en el SKU
         'descripcion',     # Buscamos en la descripción
-        'clases_propiedades__idclase__nombre', # Buscamos en el nombre de la clase
-        'clases_propiedades__propiedad', # Buscamos en la propiedad
+        #'clases_propiedades__idclase__nombre', # Buscamos en el nombre de la clase
+        #'clases_propiedades__propiedad',
+        'categoria_relacionada__idcategoria__nombre',
+        'stock',
+        'precio',
+        # Buscamos en la propiedad
     ]
   
     #----------------------------------------------------------------
