@@ -853,6 +853,9 @@ from django.core.exceptions import ValidationError
 from django.db.models import Sum, F, DecimalField
 from django.utils.timezone import now 
 
+from openpyxl.styles import Alignment, Font, PatternFill,Border, Side
+from openpyxl import Workbook
+from django.http import HttpResponse
 class TblitemViewSet(ModelViewSet):
     queryset = Tblitem.objects.prefetch_related(
         'clases_propiedades',
@@ -1511,34 +1514,89 @@ class TblitemViewSet(ModelViewSet):
             return Response({"error": f"Error inesperado: {str(e)}"},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
     @action(detail=False, methods=['get'], url_path='download-template')
     def download_template(self, request):
         """
-        Descarga la plantilla para la carga masiva con dos cabeceras.
+        Descarga una plantilla Excel mejorada para la carga masiva de productos.
         """
-        # Crear un DataFrame con las columnas requeridas
+        # Crear el archivo Excel
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Plantilla"
+
+        # Definir las columnas con sus descripciones y ejemplos
         columns = [
-            "CODIGO(SKU)", "NOMBRE DEL PRODUCTO", "STOCK", "PRECIO", "MARCA",
-            "MODELO", "CATEGORIA", "ANCHO", "PLIEGUES", "IC/IV", "APLICACIÓN",
-            "SERVICIO", "ARO", "ARO PERMITIDO", "PERFIL", "PRESENTACION",
-            "RANGO VELOCIDAD", "RUNFLAT", "INDICE DE CARGA"
+            ("CODIGO(SKU)", "SKU123456", "Obligatorio. Identificador único del producto."),
+            ("NOMBRE DEL PRODUCTO", "Llanta deportiva 17", "Obligatorio. Nombre del producto."),
+            ("STOCK", "100", "Obligatorio. Cantidad disponible."),
+            ("PRECIO", "59.99", "Obligatorio. Precio del producto (en formato numérico)."),
+            ("MARCA", "1", "Obligatorio. ID de la marca (debe existir en el sistema)."),
+            ("MODELO", "5", "Obligatorio. ID del modelo asociado a la marca."),
+            ("CATEGORIA", "10", "Opcional. ID de la categoría del producto."),
+            ("ANCHO", "225", "Opcional. Ancho del producto (en cm)."),
+            ("PLIEGUES", "4", "Opcional. Número de pliegues."),
+            ("IC/IV", "94V", "Opcional. Índice de carga y velocidad."),
+            ("APLICACIÓN", "Deportivo", "Opcional. Uso o aplicación del producto."),
+            ("SERVICIO", "Turismo", "Opcional. Tipo de servicio al que pertenece."),
+            ("ARO", "17", "Opcional. Tamaño del aro."),
+            ("ARO PERMITIDO", "16-18", "Opcional. Rango permitido del aro."),
+            ("PERFIL", "45", "Opcional. Perfil del producto."),
+            ("PRESENTACION", "Caja", "Opcional. Forma de presentación (e.g., caja, unidad)."),
+            ("RANGO VELOCIDAD", "240 km/h", "Opcional. Rango de velocidad permitido."),
+            ("RUNFLAT", "Sí", "Opcional. Tecnología Runflat (Sí o No)."),
+            ("INDICE DE CARGA", "94", "Opcional. Índice de carga."),
         ]
-        mandatory = [
-            "SI", "SI", "SI", "SI", "NO",
-            "NO", "NO", "NO", "NO", "NO",
-            "NO", "NO", "NO", "NO", "NO",
-            "NO", "NO", "NO", "NO"
-        ]
 
-        # Crear un DataFrame con las dos filas de encabezado
-        df = pd.DataFrame([mandatory, columns])
+        # Configurar estilos
+        header_fill = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+        mandatory_fill = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
+        optional_fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
+        header_font = Font(bold=True)
+        description_font = Font(color="808080", italic=True)
+        border_style = Border(
+            left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin")
+        )
 
-        # Convertir el DataFrame a un archivo Excel
-        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = 'attachment; filename="plantilla_carga_masiva.xlsx"'
-        with pd.ExcelWriter(response, engine='openpyxl') as writer:
-            df.to_excel(writer, header=False, index=False, sheet_name="Plantilla")
+        # Escribir las filas de encabezados, ejemplos y descripciones
+        headers = [column[0] for column in columns]
+        examples = [column[1] for column in columns]
+        descriptions = [column[2] for column in columns]
+        
+        ws.append(descriptions)  # Primera fila: Descripciones
+        ws.append(headers)  # Segunda fila: Encabezados
+        ws.append(examples)  # Tercera fila: Ejemplos
 
+        # Aplicar estilos a las filas
+        for col_idx, (header, description) in enumerate(zip(headers, descriptions), start=1):
+            # Estilo para descripciones
+            description_cell = ws.cell(row=1, column=col_idx)
+            description_cell.font = description_font
+            description_cell.alignment = Alignment(horizontal="left", vertical="center")
+            description_cell.border = border_style
+
+            # Estilo para encabezados
+            header_cell = ws.cell(row=2, column=col_idx)
+            header_cell.fill = header_fill
+            header_cell.font = header_font
+            header_cell.alignment = Alignment(horizontal="center", vertical="center")
+            header_cell.border = border_style
+
+            # Aplicar color a las columnas obligatorias u opcionales
+            is_mandatory = "Obligatorio" in description
+            header_cell.fill = mandatory_fill if is_mandatory else optional_fill
+
+        # Ajustar el ancho de las columnas automáticamente
+        for col in ws.columns:
+            max_length = max(len(str(cell.value) or "") for cell in col)
+            ws.column_dimensions[col[0].column_letter].width = max_length + 2
+
+        # Preparar la respuesta HTTP
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = 'attachment; filename="plantilla_carga_masiva_horizontal.xlsx"'
+        wb.save(response)
         return response
 #------------------------------------------------------------------
 from rest_framework.parsers import MultiPartParser
