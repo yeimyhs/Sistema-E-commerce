@@ -859,6 +859,12 @@ class TblitemViewSet(ModelViewSet):
     serializer_class = TblitemSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
     filterset_class = TblitemFilter
+    search_fields = [
+        'codigosku',       # Buscamos en el SKU
+        'descripcion',     # Buscamos en la descripción
+        'clases_propiedades__idclase__nombre', # Buscamos en el nombre de la clase
+        'clases_propiedades__propiedad', # Buscamos en la propiedad
+    ]
   
     #----------------------------------------------------------------
     @action(detail=False, methods=['get'], url_path='filtrobusqueda')
