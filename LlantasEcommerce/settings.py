@@ -169,7 +169,7 @@ CORS_ALLOW_HEADERS = [
 # Internationalization
 # https://docs.djangoproject.com/en/3.2/topics/i18n/
 
-LANGUAGE_CODE = 'es-pe'
+LANGUAGE_CODE = 'es'
 
 TIME_ZONE = 'UTC'
 
@@ -230,5 +230,13 @@ load_dotenv()
 # Ahora puedes acceder a las variables de entorno
 IZIPAY_USERNAME = os.getenv('IZIPAY_USERNAME')
 IZIPAY_PASSWORD = os.getenv('IZIPAY_PASSWORD')
+IZIPAY__KEY = os.getenv('IZIPAY__KEY')
 
 
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', default='localhost')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT',  default=587))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', default=True)
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', default='webmaster@localhost')

@@ -278,7 +278,7 @@ from cryptography.hazmat.backends import default_backend
 
 
 # Define tu clave secreta
-SHA_KEY = "TSEyml51VjdNpO9lA9BILIRUF8Ew6cLI2exAw2LstUBN9"  # Reemplaza con tu clave HMAC-SHA-256
+SHA_KEY = settings.IZIPAY__KEY  # Reemplaza con tu clave HMAC-SHA-256
 def check_hash(data, key):
     """
     Verifica la firma del mensaje usando HMAC-SHA256
@@ -645,6 +645,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.core.mail import send_mail
 import uuid
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
 
 class PasswordResetRequestView(APIView):
     def post(self, request):
@@ -654,9 +655,12 @@ class PasswordResetRequestView(APIView):
             user = CustomUser.objects.get(email=email)
 
             # Generar un token único
-            token = str(uuid.uuid4())
+            token_generator = PasswordResetTokenGenerator()
+            token = token_generator.make_token(user)
             # Enviar correo
-            reset_link = f"http://example.com/reset-password/{token}/"
+            scheme = request.scheme  # 'http' o 'https'
+            host = request.get_host()  # Dominio del servidor
+            reset_link = f"{scheme}://{host}/ecommerce/password-reset?user_id={user.id}&token={token}"
             send_mail(
                 "Recuperación de contraseña",
                 f"Usa este enlace para restablecer tu contraseña: {reset_link}",
@@ -666,20 +670,17 @@ class PasswordResetRequestView(APIView):
             return Response({"message": "Correo de recuperación enviado."}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
+
 class PasswordResetView(APIView):
-    def post(self, request):
-        # Extraer datos del cuerpo de la solicitud
-        token = request.data.get('token')
-        new_password = request.data.get('new_password')
+    def get(self, request):
+        # Obtener parámetros de la URL
+        user_id = request.query_params.get("user_id")
+        token = request.query_params.get("token")
 
-        if not token or not new_password:
-            return Response(
-                {"error": "Se requieren el token y la nueva contraseña."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        # Validar los parámetros
+        if not user_id or not token:
+            return Response({"error": "Faltan parámetros en la URL."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Verificar el token
-        user_id = request.data.get("user_id")  # Se debe enviar el ID del usuario junto con el token
         try:
             user = CustomUser.objects.get(id=user_id)
         except CustomUser.DoesNotExist:
@@ -689,15 +690,57 @@ class PasswordResetView(APIView):
         if not token_generator.check_token(user, token):
             return Response({"error": "Token inválido o expirado."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Restablecer la contraseña
-        if len(new_password) < 8:
-            return Response({"error": "La contraseña debe tener al menos 8 caracteres."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        user.set_password(new_password)
-        user.save()
-
-        return Response({"message": "Contraseña restablecida correctamente."})
-                        
+  # Incrustar el HTML básico
+        html_content = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Restablecer Contraseña</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    margin: 50px;
+                    padding: 20px;
+                    text-align: center;
+                }}
+                form {{
+                    max-width: 400px;
+                    margin: auto;
+                }}
+                input {{
+                    width: 100%;
+                    padding: 10px;
+                    margin: 10px 0;
+                    box-sizing: border-box;
+                }}
+                button {{
+                    padding: 10px 20px;
+                    background-color: #4CAF50;
+                    color: white;
+                    border: none;
+                    cursor: pointer;
+                }}
+            </style>
+        </head>
+        <body>
+            <h1>Restablecer Contraseña</h1>
+            <form method="POST" action="/ecommerce/login/">
+                <input type="hidden" name="user_id" value="{user_id}">
+                <input type="hidden" name="token" value="{token}">
+                <label for="new_password">Nueva Contraseña:</label>
+                <input type="password" id="new_password" name="new_password" required>
+                <label for="confirm_password">Confirmar Contraseña:</label>
+                <input type="password" id="confirm_password" name="confirm_password" required>
+                <button type="submit">Restablecer</button>
+            </form>
+        </body>
+        </html>
+        """
+        return HttpResponse(html_content, content_type="text/html")
+        # Renderizar el formulario de restablecimiento de contraseña
+        #return render(request, "password_reset_form.html", {"user_id": user_id, "token": token})
 class AdministracionViewSet(ModelViewSet):
     queryset = Administracion.objects.filter(activo=True).order_by('pk')
     serializer_class = AdministracionSerializer
