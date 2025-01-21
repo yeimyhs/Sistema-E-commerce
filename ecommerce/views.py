@@ -406,9 +406,14 @@ class ClasesYPropiedadesView(APIView):
             for modelo in modelos
         ]
         
+        
         filtro_general.append({"modelos": lista_modelos})
       
-            
+        # Obtener todos los valores distintos de ancho
+        valores_ancho = Tblitem.objects.filter(activo=True).values_list('ancho', flat=True).distinct()
+        valores_ancho = [ancho for ancho in valores_ancho if ancho is not None]  # Excluir valores nulos
+        filtro_general.append({"anchos": valores_ancho})
+    
             
         # "filtro dinamico"
         filtro_dinamico = {
@@ -508,10 +513,10 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
         id_modelo_list = data.get("id_modelo", [])
         clase_categoria = data.get("clase_categoria", [])
         ancho_list = data.get("ancho", [])
-        
+        print(id_categoria)
         if id_categoria:
-            query &= Q(categoria_relacionada=id_categoria)
-
+            query &= Q(categoria_relacionada__idcategoria__id=id_categoria)
+        print(query)
         if cadena_busqueda:
             query &= Q(titulo__icontains=cadena_busqueda)
 
@@ -536,6 +541,7 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
                         clases_propiedades__propiedad__in=propiedad_list
                     )
             query &= subquery
+        print(query)
 
         # Si no se envía ningún filtro, listar todos los items
         if not (id_categoria or cadena_busqueda or id_marca_list or id_modelo_list or clase_categoria):
@@ -543,6 +549,7 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
         else:
             # Filtrar los elementos que cumplen con los filtros
             items = Tblitem.objects.filter(query).distinct()
+        print(items)
 
         ordering = params.get("ordering", None)
         if ordering:
@@ -2048,7 +2055,7 @@ class tblitemcategoriaViewSet(ModelViewSet):
     serializer_class = tblitemcategoriaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['iditem_id__descripcion']
-    filterset_fields = ['activo', 'iditem_id']
+    filterset_fields = ['activo', 'iditem_id','idcategoria_id']
 
 
 
