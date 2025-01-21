@@ -655,7 +655,7 @@ class CuponViewSet(ModelViewSet):
     queryset = Cupon.objects.filter(activo=True).order_by('pk')
     serializer_class = CuponSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
-    search_fields = ['descripcion', 'estado', 'fechavigencia']
+    search_fields = ['codigo', 'estado']
     filterset_fields = {
     'activo': ['exact'],
     'idcupon': ['exact'],
@@ -1812,7 +1812,7 @@ class TblCarruselViewSet(ModelViewSet):
     queryset = TblCarrusel.objects.filter(activo=True).order_by('pk')
     serializer_class = TblCarruselSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
-    search_fields = ['descripcion', 'estado']
+    search_fields = ['titulo','descripcion', 'estado']
     filterset_fields = ['activo', 'id',  'descripcion', 'estado', 'fechacreacion', 'fechamodificacion']
 
 
