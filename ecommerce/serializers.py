@@ -454,4 +454,12 @@ class TblpedidoSerializer(ModelSerializer):
     def get_detalleitems(self, obj):
         detalleitems = Tbldetallepedido.objects.filter(idpedido=obj)
         return TbldetallepedidoSerializer(detalleitems, many=True).data
-    
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        if not CustomUser.objects.filter(email=value).exists():
+            raise serializers.ValidationError("No se encontró un usuario con ese correo.")
+        return value

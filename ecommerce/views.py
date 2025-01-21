@@ -1,5 +1,5 @@
 from rest_framework.viewsets import ModelViewSet
-from ecommerce.serializers import AdministracionSerializer, CuponSerializer, MarcaSerializer, MonedaSerializer, PromocionSerializer, TblcarritoSerializer, TblitemSerializer, TblnoticiaSerializer, TblpedidoSerializer, TblCarruselSerializer, TipocambioSerializer, ValoracionSerializer, TbldetallecarritoSerializer, TblimagenitemSerializer, TblitemclaseSerializer, TblitempropiedadSerializer, TblitemrelacionadoSerializer, TbldetallepedidoSerializer
+from ecommerce.serializers import  AdministracionSerializer, CuponSerializer, MarcaSerializer, MonedaSerializer, PromocionSerializer, TblcarritoSerializer, TblitemSerializer, TblnoticiaSerializer, TblpedidoSerializer, TblCarruselSerializer, TipocambioSerializer, ValoracionSerializer, TbldetallecarritoSerializer, TblimagenitemSerializer, TblitemclaseSerializer, TblitempropiedadSerializer, TblitemrelacionadoSerializer, TbldetallepedidoSerializer
 from ecommerce.models import Administracion, Cupon, Marca, Moneda, Promocion, Tblcarrito, Tblitem, Tblnoticia, Tblpedido, TblCarrusel, Tipocambio, Valoracion, Tbldetallecarrito, Tblimagenitem, Tblitemclase, Tblitempropiedad, Tblitemrelacionado, Tbldetallepedido
 
 from django.contrib.auth import login
@@ -640,8 +640,64 @@ class RegisterAPI(generics.GenericAPIView):
             "token": AuthToken.objects.create(user)[1]
         })
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.core.mail import send_mail
+import uuid
 
+class PasswordResetRequestView(APIView):
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            user = CustomUser.objects.get(email=email)
 
+            # Generar un token único
+            token = str(uuid.uuid4())
+            # Enviar correo
+            reset_link = f"http://example.com/reset-password/{token}/"
+            send_mail(
+                "Recuperación de contraseña",
+                f"Usa este enlace para restablecer tu contraseña: {reset_link}",
+                "no-reply@example.com",
+                [email]
+            )
+            return Response({"message": "Correo de recuperación enviado."}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+class PasswordResetView(APIView):
+    def post(self, request):
+        # Extraer datos del cuerpo de la solicitud
+        token = request.data.get('token')
+        new_password = request.data.get('new_password')
+
+        if not token or not new_password:
+            return Response(
+                {"error": "Se requieren el token y la nueva contraseña."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Verificar el token
+        user_id = request.data.get("user_id")  # Se debe enviar el ID del usuario junto con el token
+        try:
+            user = CustomUser.objects.get(id=user_id)
+        except CustomUser.DoesNotExist:
+            return Response({"error": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        token_generator = PasswordResetTokenGenerator()
+        if not token_generator.check_token(user, token):
+            return Response({"error": "Token inválido o expirado."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Restablecer la contraseña
+        if len(new_password) < 8:
+            return Response({"error": "La contraseña debe tener al menos 8 caracteres."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user.set_password(new_password)
+        user.save()
+
+        return Response({"message": "Contraseña restablecida correctamente."})
+                        
 class AdministracionViewSet(ModelViewSet):
     queryset = Administracion.objects.filter(activo=True).order_by('pk')
     serializer_class = AdministracionSerializer
@@ -872,7 +928,8 @@ class TblitemViewSet(ModelViewSet):
         #'clases_propiedades__propiedad',
         'categoria_relacionada__idcategoria__nombre',
         'stock',
-        'precio',
+        'titulo',
+        'precionormal'
         # Buscamos en la propiedad
     ]
   

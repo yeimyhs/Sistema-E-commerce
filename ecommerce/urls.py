@@ -16,6 +16,8 @@ urlpatterns = [
     path('logout/', knox_views.LogoutView.as_view(), name='knox_logout'),
     path('logoutall/', knox_views.LogoutAllView.as_view(), name='knox_logoutall'),
     path('register/', views.RegisterAPI.as_view(), name='register'),
+    path('password-reset-request/', views.PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('password-reset/', views.PasswordResetView.as_view(), name='password_reset'),
     path('userinfo/', views.UserInfoView.as_view(), name='userinfo'),
     path('userpedidos/', views.UserPedidosView.as_view({'get': 'list'}), name='userpedidos'),
     
