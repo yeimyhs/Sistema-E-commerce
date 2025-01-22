@@ -577,10 +577,22 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
                 propiedad_list = item.get("propiedad", [])
 
                 if id_clase and propiedad_list:
-                    subquery |= Q(
-                        clases_propiedades__idclase=id_clase,
-                        clases_propiedades__propiedad__in=propiedad_list
-                    )
+                    if "(-)" in propiedad_list:
+                        # Caso especial: "(-)" para elementos sin clase o con propiedad explícita "-"
+                        subquery |= (
+                            Q(clases_propiedades__idclase=id_clase, clases_propiedades__propiedad="-") |
+                            ~Q(clases_propiedades__idclase=id_clase)  # Elementos sin esta clase
+                        )
+                        # Remover "(-)" de la lista para evitar duplicar condiciones
+                        propiedad_list = [prop for prop in propiedad_list if prop != "(-)"]
+
+                    # Condición para las propiedades restantes
+                    if propiedad_list:
+                        subquery |= Q(
+                            clases_propiedades__idclase=id_clase,
+                            clases_propiedades__propiedad__in=propiedad_list
+                        )
+
             query &= subquery
         #print(query)
 
