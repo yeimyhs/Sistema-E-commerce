@@ -519,7 +519,10 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
         print(query)
         if cadena_busqueda:
             query &= Q(titulo__icontains=cadena_busqueda)
-
+            
+        if ancho_list:
+            query &= Q(ancho__in=ancho_list)
+            
         if id_marca_list:
             query &= Q(idmodelo__idmarca_id__in=id_marca_list)
 
@@ -544,7 +547,7 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
         print(query)
 
         # Si no se envía ningún filtro, listar todos los items
-        if not (id_categoria or cadena_busqueda or id_marca_list or id_modelo_list or clase_categoria):
+        if not (id_categoria or ancho_list or cadena_busqueda or id_marca_list or id_modelo_list or clase_categoria):
             items = Tblitem.objects.all()
         else:
             # Filtrar los elementos que cumplen con los filtros
