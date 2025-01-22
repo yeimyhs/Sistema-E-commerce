@@ -425,21 +425,25 @@ class ClasesYPropiedadesView(APIView):
         
 
         # 1. Obtener todos los diferentes valores de ancho
-        anchos = Tblitem.objects.filter(activo=True).values('ancho').annotate(
+        items = Tblitem.objects.filter(activo=True)
+        anchos = items.values('ancho').annotate(
             items_existentes=Count('idproduct')
         ).order_by('ancho')
         filtro_dinamico['ancho'] = [
             {"ancho": a['ancho'], "items_existentes": a['items_existentes']}
             for a in anchos if a['ancho'] is not None
         ]
+        
 
         # 2. Si se recibe "ancho", filtrar items por "ancho" y listar perfiles
 # 2. Si se recibe "ancho", filtrar items por "ancho" y listar perfiles
         if "ancho" in filtros:
             ancho_filtro = filtros['ancho']
+            
             items_por_ancho = Tblitem.objects.filter(activo=True, ancho=ancho_filtro)
-
+         
                 # Contar perfiles vinculados
+            # Contar perfiles vinculados, considerando los casos de "-" y sin perfil asociado
             perfiles_vinculados = (
                 items_por_ancho
                 .prefetch_related('clases_propiedades')  # Traer todas las clases relacionadas
@@ -449,6 +453,12 @@ class ClasesYPropiedadesView(APIView):
                 .order_by('clases_propiedades__propiedad')
             )
 
+            # Contar los productos sin perfil asociado o con perfil explícito "-"
+            sin_perfil_o_invalido = (
+                items_por_ancho.exclude(clases_propiedades__idclase__nombre="Perfil")
+             | items_por_ancho.filter(clases_propiedades__propiedad="-")
+            ).distinct()
+
             # Construir el listado para filtro_dinamico
             filtro_dinamico['perfil'] = [
                 {
@@ -457,37 +467,65 @@ class ClasesYPropiedadesView(APIView):
                 }
                 for p in perfiles_vinculados if p['clases_propiedades__propiedad'] is not None
             ]
+            filtro_dinamico['perfil'].append({
+                "perfil": "(-)",
+                "items_existentes": sin_perfil_o_invalido.count()
+            })
         
-# 3. Si se reciben "ancho" y "perfil", filtrar items por ambos y listar aros
         if "ancho" in filtros and "perfil" in filtros:
             perfil_filtro = filtros['perfil']
             
-            # Filtrar ítems por "ancho" y "perfil"
-            items_por_ancho_y_perfil = Tblitem.objects.filter(
-                activo=True,
-                ancho=ancho_filtro,
-                clases_propiedades__idclase__nombre="Perfil",  # Filtrar solo las clases "Perfil"
-                clases_propiedades__propiedad=perfil_filtro  # Filtrar por el perfil recibido
-            )
+            if perfil_filtro == "(-)":  # Caso especial para "(-)"
+                # Ítems con perfil explícito "-" o sin perfil asociado
+                items_por_ancho_y_perfil = Tblitem.objects.filter(
+                    activo=True,
+                    ancho=ancho_filtro
+                ).filter(
+                    Q(clases_propiedades__idclase__nombre="Perfil", clases_propiedades__propiedad="-") |
+                    ~Q(clases_propiedades__idclase__nombre="Perfil")
+                ).distinct()
+            else:
+                # Ítems con el perfil específico recibido
+                items_por_ancho_y_perfil = Tblitem.objects.filter(
+                    activo=True,
+                    ancho=ancho_filtro,
+                    clases_propiedades__idclase__nombre="Perfil",  # Filtrar solo las clases "Perfil"
+                    clases_propiedades__propiedad=perfil_filtro  # Filtrar por el perfil recibido
+                )
 
-            # Filtrar los aros relacionados con los ítems filtrados por "ancho" y "perfil"
-            aros = items_por_ancho_y_perfil.prefetch_related('clases_propiedades')  # Usar el queryset filtrado
-            aros = aros.filter(clases_propiedades__idclase__nombre="Aro")  # Asegurarse de que solo se filtren los aros
-            aros = aros.values('clases_propiedades__propiedad').annotate(
+            # Ítems relacionados con "Aro"
+            aros_con_clase = items_por_ancho_y_perfil.filter(
+                clases_propiedades__idclase__nombre="Aro"
+            ).values(
+                'clases_propiedades__propiedad'
+            ).annotate(
                 items_existentes=Count('idproduct')
             ).order_by('clases_propiedades__propiedad')
-            
+
+            # Conteo de ítems sin clase "Aro" o con propiedad "-"
+            sin_aro_o_invalido = items_por_ancho_y_perfil.filter(
+                Q(clases_propiedades__propiedad="-") |
+                ~Q(clases_propiedades__idclase__nombre="Aro")
+            ).distinct()
+
+            # Construir el listado para "Aro"
             filtro_dinamico['aro'] = [
                 {"aro": a['clases_propiedades__propiedad'], "items_existentes": a['items_existentes']}
-                for a in aros if a['clases_propiedades__propiedad'] is not None
+                for a in aros_con_clase if a['clases_propiedades__propiedad'] is not None
             ]
+
+            # Agregar el conteo de elementos sin clase "Aro" o explícitamente "-"
+            filtro_dinamico['aro'].append({
+                "aro": "(-)",
+                "items_existentes": sin_aro_o_invalido.count()
+            })
 
         # Respuesta final
         return Response({
             "filtro general": filtro_general,
             "filtro dinamico": filtro_dinamico
         })
-    
+
 from rest_framework.pagination import PageNumberPagination
 
 class FixedPageNumberPagination(PageNumberPagination):
@@ -544,7 +582,7 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
                         clases_propiedades__propiedad__in=propiedad_list
                     )
             query &= subquery
-        print(query)
+        #print(query)
 
         # Si no se envía ningún filtro, listar todos los items
         if not (id_categoria or ancho_list or cadena_busqueda or id_marca_list or id_modelo_list or clase_categoria):
@@ -552,7 +590,7 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
         else:
             # Filtrar los elementos que cumplen con los filtros
             items = Tblitem.objects.filter(query).distinct()
-        print(items)
+        #print(items)
 
         ordering = params.get("ordering", None)
         if ordering:
