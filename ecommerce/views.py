@@ -441,7 +441,15 @@ class ClasesYPropiedadesView(APIView):
             ancho_filtro = filtros['ancho']
             
             items_por_ancho = Tblitem.objects.filter(activo=True, ancho=ancho_filtro)
-         
+            cat=0
+            for item in items_por_ancho:
+                cat = cat + 1
+                print(item.codigosku,cat)
+                for propiedad in item.clases_propiedades.filter(idclase__nombre="Perfil"):
+                    print(f"  - Perfil: {propiedad.propiedad}")
+                for propiedad in item.clases_propiedades.filter(idclase__nombre="Aro"):
+                    print(f"  - aro: {propiedad.propiedad}")
+                # Contar perfiles vinculados
                 # Contar perfiles vinculados
             # Contar perfiles vinculados, considerando los casos de "-" y sin perfil asociado
             perfiles_vinculados = (
@@ -467,28 +475,27 @@ class ClasesYPropiedadesView(APIView):
                 }
                 for p in perfiles_vinculados if p['clases_propiedades__propiedad'] is not None
             ]
-            filtro_dinamico['perfil'].append({
-                "perfil": "(-)",
-                "items_existentes": sin_perfil_o_invalido.count()
-            })
+            
+            countp = sin_perfil_o_invalido.count()
+            if countp != 0:
+                filtro_dinamico['perfil'].append({
+                    "perfil": "(-)",
+                    "items_existentes": countp
+                })
         
         if "ancho" in filtros and "perfil" in filtros:
             perfil_filtro = filtros['perfil']
             
+            
             if perfil_filtro == "(-)":  # Caso especial para "(-)"
                 # Ítems con perfil explícito "-" o sin perfil asociado
-                items_por_ancho_y_perfil = Tblitem.objects.filter(
-                    activo=True,
-                    ancho=ancho_filtro
-                ).filter(
+                items_por_ancho_y_perfil = items_por_ancho.filter(
                     Q(clases_propiedades__idclase__nombre="Perfil", clases_propiedades__propiedad="-") |
                     ~Q(clases_propiedades__idclase__nombre="Perfil")
                 ).distinct()
             else:
                 # Ítems con el perfil específico recibido
-                items_por_ancho_y_perfil = Tblitem.objects.filter(
-                    activo=True,
-                    ancho=ancho_filtro,
+                items_por_ancho_y_perfil = items_por_ancho.filter(
                     clases_propiedades__idclase__nombre="Perfil",  # Filtrar solo las clases "Perfil"
                     clases_propiedades__propiedad=perfil_filtro  # Filtrar por el perfil recibido
                 )
@@ -513,12 +520,13 @@ class ClasesYPropiedadesView(APIView):
                 {"aro": a['clases_propiedades__propiedad'], "items_existentes": a['items_existentes']}
                 for a in aros_con_clase if a['clases_propiedades__propiedad'] is not None
             ]
-
+            counta = sin_aro_o_invalido.count()
             # Agregar el conteo de elementos sin clase "Aro" o explícitamente "-"
-            filtro_dinamico['aro'].append({
-                "aro": "(-)",
-                "items_existentes": sin_aro_o_invalido.count()
-            })
+            if counta != 0:
+                filtro_dinamico['aro'].append({
+                    "aro": "(-)",
+                    "items_existentes": counta
+                })
 
         # Respuesta final
         return Response({
@@ -577,31 +585,36 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
                 propiedad_list = item.get("propiedad", [])
 
                 if id_clase and propiedad_list:
+                    clase_subquery = Q()
                     if "(-)" in propiedad_list:
                         # Caso especial: "(-)" para elementos sin clase o con propiedad explícita "-"
-                        subquery |= (
-                            Q(clases_propiedades__idclase=id_clase, clases_propiedades__propiedad="-") |
-                            ~Q(clases_propiedades__idclase=id_clase)  # Elementos sin esta clase
+                        clase_subquery = (
+                           Q(clases_propiedades__idclase=id_clase, clases_propiedades__propiedad="-") #|
+                            #~Q(clases_propiedades__idclase=id_clase)  # Elementos sin esta clase
                         )
                         # Remover "(-)" de la lista para evitar duplicar condiciones
                         propiedad_list = [prop for prop in propiedad_list if prop != "(-)"]
 
                     # Condición para las propiedades restantes
                     if propiedad_list:
-                        subquery |= Q(
+                        print("aquiiii")
+                        
+                        clase_subquery |= Q(
                             clases_propiedades__idclase=id_clase,
                             clases_propiedades__propiedad__in=propiedad_list
                         )
+                    subquery &= clase_subquery  # Usamos '&' para asegurar que las condiciones de esta clase se combinen correctamente
 
-            query &= subquery
-        #print(query)
+                    # Finalmente, combinamos el subquery con el query principal
+                query &= subquery 
+        print(query)
 
         # Si no se envía ningún filtro, listar todos los items
         if not (id_categoria or ancho_list or cadena_busqueda or id_marca_list or id_modelo_list or clase_categoria):
             items = Tblitem.objects.all()
         else:
             # Filtrar los elementos que cumplen con los filtros
-            items = Tblitem.objects.filter(query).distinct()
+            items = Tblitem.objects.filter(activo=True).filter(query).distinct()
         #print(items)
 
         ordering = params.get("ordering", None)
