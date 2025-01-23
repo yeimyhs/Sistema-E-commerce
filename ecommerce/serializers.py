@@ -10,16 +10,29 @@ from django.contrib.auth import get_user_model
 from rest_framework.serializers import ModelSerializer
 
 from django.contrib.auth import authenticate
-
+from django.utils.translation import gettext_lazy as _
 class CustomAuthTokenSerializer(serializers.Serializer):
-    nombreusuario = serializers.CharField()
-    password = serializers.CharField()
+    nombreusuario = serializers.CharField(label=_("Nombre de Usuario"))
+    password = serializers.CharField(label=_("Contraseña"), style={'input_type': 'password'}, trim_whitespace=False)
 
     def validate(self, attrs):
-        # Usar el campo 'nombreusuario' en lugar de 'username'
-        user = authenticate(nombreusuario=attrs['nombreusuario'], password=attrs['password'])
-        if user is None:
-            raise serializers.ValidationError("Credenciales inválidas")
+        nombreusuario = attrs.get('nombreusuario')
+        password = attrs.get('password')
+
+        if nombreusuario and password:
+            user = authenticate(request=self.context.get('request'), username=nombreusuario, password=password)
+
+            if not user:
+                raise serializers.ValidationError(
+                    _("Credenciales inválidas. Por favor, intente de nuevo."),
+                    code='authorization'
+                )
+        else:
+            raise serializers.ValidationError(
+                _("Debe ingresar ambos campos: nombreusuario y password."),
+                code='authorization'
+            )
+
         attrs['user'] = user
         return attrs
 
