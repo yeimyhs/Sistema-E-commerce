@@ -283,6 +283,7 @@ def check_hash(data, key):
     """
     Verifica la firma del mensaje usando HMAC-SHA256
     """
+    print(SHA_KEY)
     supported_sign_algos = ['sha256_hmac']
     alg = data.get('kr-hash-algorithm')
 
@@ -364,6 +365,7 @@ def process_payment(request):
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db.models import Count
+from django.db.models import Q, Exists, OuterRef
 
 
 class ClasesYPropiedadesView(APIView):
@@ -408,127 +410,106 @@ class ClasesYPropiedadesView(APIView):
         
         
         filtro_general.append({"modelos": lista_modelos})
-      
+
         # Obtener todos los valores distintos de ancho
         valores_ancho = Tblitem.objects.filter(activo=True).values_list('ancho', flat=True).distinct()
         valores_ancho = [ancho for ancho in valores_ancho if ancho is not None]  # Excluir valores nulos
         filtro_general.append({"anchos": valores_ancho})
     
             
-        # "filtro dinamico"
+        
+        #-----------------------------------------------------------------
+        #-----------------------------------------------------------------
+        
+        
+        data = request.data
+        ancho_filtro = data.get('ancho', None)
+        perfil_filtro = data.get('perfil', None)
         filtro_dinamico = {
             "ancho": [],
             "perfil": [],
             "aro": []
         }
-        
-        
 
-        # 1. Obtener todos los diferentes valores de ancho
-        items = Tblitem.objects.filter(activo=True)
-        anchos = items.values('ancho').annotate(
-            items_existentes=Count('idproduct')
-        ).order_by('ancho')
-        filtro_dinamico['ancho'] = [
-            {"ancho": a['ancho'], "items_existentes": a['items_existentes']}
-            for a in anchos if a['ancho'] is not None
+        # Obtener la población inicial
+        poblacion = Tblitem.objects.filter(activo=True)
+
+        # **Nivel 1: Filtro por ancho**
+        
+        # Listado de valores distintos de ancho con su conteo
+        anchos = poblacion.values('ancho').annotate(items_existentes=Count('idproduct')).order_by('ancho')
+        filtro_dinamico["ancho"] = [
+            {"ancho": ancho["ancho"], "items_existentes": ancho["items_existentes"]}
+            for ancho in anchos
         ]
-        
-
-        # 2. Si se recibe "ancho", filtrar items por "ancho" y listar perfiles
-# 2. Si se recibe "ancho", filtrar items por "ancho" y listar perfiles
-        if "ancho" in filtros:
-            ancho_filtro = filtros['ancho']
-            
-            items_por_ancho = Tblitem.objects.filter(activo=True, ancho=ancho_filtro)
-            cat=0
-            for item in items_por_ancho:
-                cat = cat + 1
-                print(item.codigosku,cat)
-                for propiedad in item.clases_propiedades.filter(idclase__nombre="Perfil"):
-                    print(f"  - Perfil: {propiedad.propiedad}")
-                for propiedad in item.clases_propiedades.filter(idclase__nombre="Aro"):
-                    print(f"  - aro: {propiedad.propiedad}")
-                # Contar perfiles vinculados
-                # Contar perfiles vinculados
-            # Contar perfiles vinculados, considerando los casos de "-" y sin perfil asociado
-            perfiles_vinculados = (
-                items_por_ancho
-                .prefetch_related('clases_propiedades')  # Traer todas las clases relacionadas
-                .filter(clases_propiedades__idclase__nombre="Perfil")  # Filtrar solo las clases "Perfil"
-                .values('clases_propiedades__propiedad')
-                .annotate(items_existentes=Count('idproduct'))
-                .order_by('clases_propiedades__propiedad')
+        if ancho_filtro:
+            # Filtrar por ancho recibido
+            #ancho_filtro = float(ancho_filtro)
+            print(ancho_filtro)
+            poblacion = poblacion.filter(ancho=ancho_filtro)
+            print(poblacion)
+            # **Nivel 2: Filtro por perfil**
+            # Obtener los vínculos relacionados con la clase "Perfil" (idclase=1)
+            vinculados = tblitemclasevinculo.objects.filter(
+                iditem__in=poblacion, 
+                idclase__idclase=1, 
+                activo=True
             )
 
-            # Contar los productos sin perfil asociado o con perfil explícito "-"
-            sin_perfil_o_invalido = (
-                items_por_ancho.exclude(clases_propiedades__idclase__nombre="Perfil")
-             | items_por_ancho.filter(clases_propiedades__propiedad="-")
-            ).distinct()
-
-            # Construir el listado para filtro_dinamico
-            filtro_dinamico['perfil'] = [
-                {
-                    "perfil": p['clases_propiedades__propiedad'],
-                    "items_existentes": p['items_existentes']
-                }
-                for p in perfiles_vinculados if p['clases_propiedades__propiedad'] is not None
+            # Obtener perfiles únicos
+            perfiles = vinculados.values('propiedad').annotate(items_existentes=Count('iditem', distinct=True))
+            perfiles_data = [
+                {"perfil": perfil["propiedad"] if perfil["propiedad"] != "-" else "(-)", 
+                "items_existentes": perfil["items_existentes"]}
+                for perfil in perfiles
             ]
-            
-            countp = sin_perfil_o_invalido.count()
-            if countp != 0:
-                filtro_dinamico['perfil'].append({
-                    "perfil": "(-)",
-                    "items_existentes": countp
-                })
-        
-        if "ancho" in filtros and "perfil" in filtros:
-            perfil_filtro = filtros['perfil']
-            
-            
-            if perfil_filtro == "(-)":  # Caso especial para "(-)"
-                # Ítems con perfil explícito "-" o sin perfil asociado
-                items_por_ancho_y_perfil = items_por_ancho.filter(
-                    Q(clases_propiedades__idclase__nombre="Perfil", clases_propiedades__propiedad="-") |
-                    ~Q(clases_propiedades__idclase__nombre="Perfil")
-                ).distinct()
-            else:
-                # Ítems con el perfil específico recibido
-                items_por_ancho_y_perfil = items_por_ancho.filter(
-                    clases_propiedades__idclase__nombre="Perfil",  # Filtrar solo las clases "Perfil"
-                    clases_propiedades__propiedad=perfil_filtro  # Filtrar por el perfil recibido
+
+            # Agregar los items sin vinculación o con propiedad "-"
+            items_sin_vinculo = poblacion.exclude(
+                clases_propiedades__idclase__idclase=1
+            ).count()
+            if items_sin_vinculo > 0:
+                perfiles_data.append({"perfil": "(-)", "items_existentes": items_sin_vinculo})
+            filtro_dinamico["perfil"] = perfiles_data
+
+            # **Nivel 3: Filtro por aro**
+            if perfil_filtro:
+                if perfil_filtro == "(-)":
+                    # Filtrar por items sin vinculación o con propiedad "-"
+                    poblacion = poblacion.filter(
+                        Q(clases_propiedades__idclase__idclase=1, clases_propiedades__propiedad="-") |
+                        ~Q(clases_propiedades__idclase__idclase=1)
+                    ).distinct()
+                else:
+                    # Filtrar por items con el perfil especificado
+                    poblacion = poblacion.filter(
+                        clases_propiedades__idclase__idclase=1, 
+                        clases_propiedades__propiedad=perfil_filtro
+                    )
+
+                # Obtener los vínculos relacionados con la clase "Aro" (idclase=2)
+                vinculados_aro = tblitemclasevinculo.objects.filter(
+                    iditem__in=poblacion, 
+                    idclase__idclase=2, 
+                    activo=True
                 )
 
-            # Ítems relacionados con "Aro"
-            aros_con_clase = items_por_ancho_y_perfil.filter(
-                clases_propiedades__idclase__nombre="Aro"
-            ).values(
-                'clases_propiedades__propiedad'
-            ).annotate(
-                items_existentes=Count('idproduct')
-            ).order_by('clases_propiedades__propiedad')
+                # Obtener aros únicos
+                aros = vinculados_aro.values('propiedad').annotate(items_existentes=Count('iditem', distinct=True))
+                aros_data = [
+                    {"aro": aro["propiedad"] if aro["propiedad"] != "-" else "(-)", 
+                    "items_existentes": aro["items_existentes"]}
+                    for aro in aros
+                ]
 
-            # Conteo de ítems sin clase "Aro" o con propiedad "-"
-            sin_aro_o_invalido = items_por_ancho_y_perfil.filter(
-                Q(clases_propiedades__propiedad="-") |
-                ~Q(clases_propiedades__idclase__nombre="Aro")
-            ).distinct()
-
-            # Construir el listado para "Aro"
-            filtro_dinamico['aro'] = [
-                {"aro": a['clases_propiedades__propiedad'], "items_existentes": a['items_existentes']}
-                for a in aros_con_clase if a['clases_propiedades__propiedad'] is not None
-            ]
-            counta = sin_aro_o_invalido.count()
-            # Agregar el conteo de elementos sin clase "Aro" o explícitamente "-"
-            if counta != 0:
-                filtro_dinamico['aro'].append({
-                    "aro": "(-)",
-                    "items_existentes": counta
-                })
-
-        # Respuesta final
+                # Agregar los items sin vinculación o con propiedad "-"
+                items_sin_aro = poblacion.exclude(
+                    clases_propiedades__idclase__idclase=2
+                ).count()
+                if items_sin_aro > 0:
+                    aros_data.append({"aro": "(-)", "items_existentes": items_sin_aro})
+                filtro_dinamico["aro"] = aros_data
+            # Respuesta final
         return Response({
             "filtro general": filtro_general,
             "filtro dinamico": filtro_dinamico
@@ -691,12 +672,14 @@ class UserPedidosView(ModelViewSet):
     search_fields = ['idcliente__nombreusuario', 'total', 'estado']
  # Permite ordenar por fecha o precio
     filterset_class = TblpedidoFilter  # Usar un filtro personalizado
+    
+    
 
     def get_queryset(self):
         # Filtrar los pedidos por el usuario autenticado
         user = self.request.user
         return Tblpedido.objects.filter(idcliente=user, activo=True).order_by('pk')
-        
+    
       
     
 class RegisterAPI(generics.GenericAPIView):
