@@ -279,13 +279,17 @@ class TblCarrusel(models.Model):
         db_table = 'TblCarrusel'
 
 class CustomUserManager(BaseUserManager):
-    def create_user(self, nombreusuario, password=None, **extra_fields):
+    def create_user(self, nombreusuario, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError("El email es obligatorio")
+        
+        email = self.normalize_email(email)
         # Verifica que el campo nombreusuario esté presente
         if not nombreusuario:
             raise ValueError('El campo nombreusuario debe ser declarado')
         
         # Crea el usuario con el nombre de usuario y otros campos extra
-        user = self.model(nombreusuario=nombreusuario, **extra_fields)
+        user = self.model(nombreusuario=nombreusuario, email = email, **extra_fields)
         
         # Establece la contraseña
         if password:
@@ -295,13 +299,13 @@ class CustomUserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, nombreusuario, password=None, **extra_fields):
+    def create_superuser(self, nombreusuario, email, password=None, **extra_fields):
         # Establece is_staff y is_superuser para el superusuario
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
 
         # Llama a create_user para crear el superusuario
-        return self.create_user(nombreusuario, password, **extra_fields)
+        return self.create_user(nombreusuario, email, password, **extra_fields)
 
 class CustomUser(AbstractUser):
     # Eliminar el campo `username` heredado
@@ -323,7 +327,7 @@ class CustomUser(AbstractUser):
     provincia = models.CharField(max_length=128, blank=True, null=True)
     distrito = models.CharField(max_length=128, blank=True, null=True)
     
-    
+    email = models.EmailField(unique=True) 
     email_verified_at = models.DateTimeField(blank=True, null=True)
     remember_token = models.CharField(max_length=100, blank=True, null=True)
 
