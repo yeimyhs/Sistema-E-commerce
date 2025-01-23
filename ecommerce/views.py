@@ -529,93 +529,174 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
         # Obtener el JSON del cuerpo de la solicitud
         data = request.data
         params = request.query_params
-        # Construcción del query
         query = Q()
 
-        # Filtros adicionales opcionales
-        # Filtros adicionales opcionales
+        # Filtros opcionales
         cadena_busqueda = data.get("cadena_busqueda")
         id_categoria = data.get("id_categoria")
         id_marca_list = data.get("id_marca", [])
         id_modelo_list = data.get("id_modelo", [])
         clase_categoria = data.get("clase_categoria", [])
         ancho_list = data.get("ancho", [])
-        print(id_categoria)
+
+        # Construcción del query
         if id_categoria:
             query &= Q(categoria_relacionada__idcategoria__id=id_categoria)
-        print(query)
         if cadena_busqueda:
             query &= Q(titulo__icontains=cadena_busqueda)
-            
         if ancho_list:
             query &= Q(ancho__in=ancho_list)
-            
         if id_marca_list:
             query &= Q(idmodelo__idmarca_id__in=id_marca_list)
-
         if id_modelo_list:
             query &= Q(idmodelo__in=id_modelo_list)
-            
-        if ancho_list:
-            query &= Q(ancho__in=ancho_list)
-            
+
+        # Filtrar ítems por ancho
+        poblacion = Tblitem.objects.filter(activo=True).filter(query).distinct()
+
+# Caso especial: Manejo de clase_categoria
         if clase_categoria:
-            subquery = Q()
-            for item in clase_categoria:
-                id_clase = item.get("id_clase")
-                propiedad_list = item.get("propiedad", [])
+            for clase in clase_categoria:
+                id_clase = clase.get("id_clase")
+                propiedad_list = clase.get("propiedad", [])
 
-                if id_clase and propiedad_list:
-                    clase_subquery = Q()
-                    if "(-)" in propiedad_list:
-                        # Caso especial: "(-)" para elementos sin clase o con propiedad explícita "-"
-                        clase_subquery = (
-                           Q(clases_propiedades__idclase=id_clase, clases_propiedades__propiedad="-") #|
-                            #~Q(clases_propiedades__idclase=id_clase)  # Elementos sin esta clase
-                        )
-                        # Remover "(-)" de la lista para evitar duplicar condiciones
-                        propiedad_list = [prop for prop in propiedad_list if prop != "(-)"]
+                if id_clase is None or not isinstance(propiedad_list, list):
+                    return Response(
+                        {'error': 'Cada objeto en "clase_categoria" debe contener "id_clase" y "propiedad" como lista.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
-                    # Condición para las propiedades restantes
-                    if propiedad_list:
-                        print("aquiiii")
-                        
-                        clase_subquery |= Q(
-                            clases_propiedades__idclase=id_clase,
-                            clases_propiedades__propiedad__in=propiedad_list
-                        )
-                    subquery &= clase_subquery  # Usamos '&' para asegurar que las condiciones de esta clase se combinen correctamente
+                # Filtro para las propiedades de esta clase
+                clase_subquery = Q()
 
-                    # Finalmente, combinamos el subquery con el query principal
-                query &= subquery 
-        print(query)
+                # Caso especial: propiedad "(-)"
+                if "(-)" in propiedad_list:
+                    vinculos_con_propiedad_especial = tblitemclasevinculo.objects.filter(
+                        idclase__idclase=id_clase,
+                        propiedad="-",
+                        iditem__in=poblacion.values_list('idproduct', flat=True)
+                    ).values_list('iditem', flat=True)
 
-        # Si no se envía ningún filtro, listar todos los items
-        if not (id_categoria or ancho_list or cadena_busqueda or id_marca_list or id_modelo_list or clase_categoria):
-            items = Tblitem.objects.all()
-        else:
-            # Filtrar los elementos que cumplen con los filtros
-            items = Tblitem.objects.filter(activo=True).filter(query).distinct()
-        #print(items)
+                    # Ítems sin relación con la clase
+                    vinculos_de_clase = tblitemclasevinculo.objects.filter(
+                        idclase__idclase=id_clase,
+                        iditem__in=poblacion.values_list('idproduct', flat=True)
+                    ).values_list('iditem', flat=True)
 
+                    items_sin_relacion = poblacion.exclude(idproduct__in=vinculos_de_clase)
+
+                    # Unir ítems con propiedad "-" y sin relación
+                    items_filtrados_ids = set(vinculos_con_propiedad_especial).union(
+                        items_sin_relacion.values_list('idproduct', flat=True)
+                    )
+                    clase_subquery |= Q(idproduct__in=items_filtrados_ids)
+
+                    # Remover "(-)" para evitar duplicar condiciones
+                    propiedad_list = [prop for prop in propiedad_list if prop != "(-)"]
+
+                # Filtro para propiedades restantes
+                if propiedad_list:
+                    clase_subquery |= Q(
+                        clases_propiedades__idclase=id_clase,
+                        clases_propiedades__propiedad__in=propiedad_list
+                    )
+
+                # Aplicar el subquery de la clase al query principal
+                poblacion = poblacion.filter(clase_subquery)
+
+        # Filtrar los ítems finales
+        items = poblacion.distinct()
+
+        # Ordenamiento
         ordering = params.get("ordering", None)
         if ordering:
             items = items.order_by(*ordering.split(","))
-        
 
-        ordering = params.get("ordering", None)
-        print(ordering)
-        if ordering:
-            items = items.order_by(*ordering.split(","))
+
         # Paginación
         paginator = self.pagination_class()
         paginated_items = paginator.paginate_queryset(items, request)
 
-        # Serializar los resultados
+        # Serialización
         serializer = TblitemSerializer(paginated_items, many=True)
 
-        # Responder con los datos paginados
+        # Respuesta
         return paginator.get_paginated_response(serializer.data)
+
+
+class BusqussedaDinamicaViewSet(viewsets.ViewSet):
+    def create(self, request):
+        # Leer el cuerpo de la solicitud
+        data = request.data
+        ancho_filtro = data.get('ancho', [])
+        clase_categoria = data.get('clase_categoria', [])
+
+        # Validar que "ancho" sea una lista no vacía
+        if not ancho_filtro:
+            return Response(
+                {'error': 'El campo "ancho" es obligatorio y debe ser una lista no vacía.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Filtrar los ítems por ancho
+        poblacion = Tblitem.objects.filter(activo=True, ancho__in=ancho_filtro)
+        print(poblacion.count() , "aqui")
+
+        # Manejo de caso especial
+        resultado = []
+        for clase in clase_categoria:
+            id_clase = clase.get('id_clase')
+            propiedad_filtro = clase.get('propiedad', [])
+
+            if id_clase is None or not isinstance(propiedad_filtro, list):
+                return Response(
+                    {'error': 'Cada objeto en "clase_categoria" debe contener "id_clase" y "propiedad" como lista.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Filtro para caso especial: propiedad = "(-)" o sin relación con la clase
+            if "(-)" in propiedad_filtro:
+                vinculos_con_propiedad_especial = tblitemclasevinculo.objects.filter(
+                    idclase__idclase=id_clase,
+                    propiedad="-",
+                    iditem__in=poblacion.values_list('idproduct', flat=True)
+                ).values_list('iditem', flat=True)
+
+                # 2. Identificar los ítems que no tienen ninguna relación con la clase
+                vinculos_de_clase = tblitemclasevinculo.objects.filter(
+                    idclase__idclase=id_clase,
+                    iditem__in=poblacion.values_list('idproduct', flat=True)
+                ).values_list('iditem', flat=True)
+
+                # Ítems de la población que no están relacionados con la clase
+                items_sin_relacion = poblacion.exclude(idproduct__in=vinculos_de_clase)
+
+                # 3. Unir los ítems relacionados con "-" y los que no tienen relación
+                items_filtrados_ids = set(vinculos_con_propiedad_especial).union(
+                    items_sin_relacion.values_list('idproduct', flat=True)
+                )
+                items_filtrados = poblacion.filter(idproduct__in=items_filtrados_ids)
+                print(items_filtrados.count() , "aqui")
+                
+            else:
+                # Filtrar por propiedades específicas si no es caso especial
+                clase_vinculos_especiales = tblitemclasevinculo.objects.filter(
+                    idclase__idclase=id_clase,
+                    propiedad__in=propiedad_filtro,
+                    iditem__in=poblacion.values_list('idproduct', flat=True)
+                )
+
+            # Obtener los ítems correspondientes al filtro actual
+            #items_especiales = poblacion.filter(
+            #    idproduct__in=clase_vinculos_especiales.values_list('iditem', flat=True)
+            #)
+
+            # Añadir los ítems encontrados al resultado final
+            resultado.extend(poblacion.values('idproduct', 'codigosku', 'titulo', 'ancho', 'stock'))
+
+        # Devolver los resultados organizados
+        return Response({'items': resultado}, status=status.HTTP_200_OK)
+    
 
 class LoginView(KnoxLoginView):
     permission_classes = (permissions.AllowAny,)
