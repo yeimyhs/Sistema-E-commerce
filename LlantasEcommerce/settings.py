@@ -67,6 +67,9 @@ CORS_ALLOWED_ORIGINS = [
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ('knox.auth.TokenAuthentication',),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
     'PAGE_SIZE': 10
     
@@ -112,22 +115,22 @@ WSGI_APPLICATION = 'LlantasEcommerce.wsgi.application'
 '''DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'LlantasBD',
+        'NAME': 'prueballantas',
         'USER': 'postgres',
         'PASSWORD': 'yeimyhs',
         'HOST': 'localhost',
-        'PORT': '5432',
+        'PORT': '5433',
     }
-}
-
-'''
+}'''
 DATABASES = {
     'default': {
         # Sqlite
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'dbpoblada.sqlite3',
+        'NAME': BASE_DIR / 'dbpoblada23012025.sqlite3',
     }
 }
+
+
 DATETIME_FORMAT = 'Y-m-d H:i:s' 
 
 # Password validation
