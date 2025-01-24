@@ -128,7 +128,7 @@ DATABASES = {
     'default': {
         # Sqlite
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'dbpoblada23012025.sqlite3',
+        'NAME': BASE_DIR / 'dbpoblada.sqlite3',
     }
 }
 
