@@ -543,7 +543,14 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
         if id_categoria:
             query &= Q(categoria_relacionada__idcategoria__id=id_categoria)
         if cadena_busqueda:
-            query &= Q(titulo__icontains=cadena_busqueda)
+            cadena_search_query = (
+                Q(codigosku__icontains=cadena_busqueda) |
+                Q(titulo__icontains=cadena_busqueda) |
+                Q(descripcion__icontains=cadena_busqueda) |
+                Q(altura__icontains=cadena_busqueda) |
+                Q(ancho__icontains=cadena_busqueda)
+            )
+            query &= cadena_search_query
         if ancho_list:
             query &= Q(ancho__in=ancho_list)
         if id_marca_list:
