@@ -476,10 +476,22 @@ class ClasesYPropiedadesView(APIView):
             if perfil_filtro:
                 if perfil_filtro == "(-)":
                     # Filtrar por items sin vinculación o con propiedad "-"
-                    poblacion = poblacion.filter(
-                        Q(clases_propiedades__idclase__idclase=1, clases_propiedades__propiedad="-") |
-                        ~Q(clases_propiedades__idclase__idclase=1)
-                    ).distinct()
+                    # Obtener ítems que tienen la propiedad "-" para la clase con idclase=1
+                    items_con_propiedad_especial = poblacion.filter(
+                        clases_propiedades__idclase__idclase=1,
+                        clases_propiedades__propiedad="-"
+                    ).values_list('idproduct', flat=True)
+
+                    # Obtener ítems que no tienen ninguna relación con la clase con idclase=1
+                    items_sin_relacion = poblacion.exclude(
+                        clases_propiedades__idclase__idclase=1
+                    ).values_list('idproduct', flat=True)
+
+                    # Combinar ambos conjuntos de ítems (sin duplicados)
+                    items_filtrados_ids = set(items_con_propiedad_especial).union(items_sin_relacion)
+
+                    # Actualizar la población con los ítems filtrados
+                    poblacion = poblacion.filter(idproduct__in=items_filtrados_ids)
                 else:
                     # Filtrar por items con el perfil especificado
                     poblacion = poblacion.filter(
