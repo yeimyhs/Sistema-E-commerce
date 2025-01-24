@@ -496,6 +496,8 @@ class tblitemclasevinculo(models.Model):
 
     class Meta:
         db_table = 'tblItemClaseVinculo'
+        #unique_together = (('idclase', 'iditem'),)
+        
 
 
 class tblitemcupon(models.Model):
