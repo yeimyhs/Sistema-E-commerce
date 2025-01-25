@@ -350,6 +350,32 @@ def process_payment(request):
         pedido = Tblpedido.objects.get(idpedido=idpedido)
         pedido.idtransaccion = nueva_transaccion
         pedido.save()
+        
+        #guardaara el monto en un a variable 
+        #moneda del pedido
+        #busquela moneda actual de la tabla administradcion 
+        #if no coincidencia de la moneda administracion y l moneda del pedido
+        #entonces que el mmonto lo 
+        
+        
+        #tarer los detalles de  pedido 
+        #guardarlos en una lista
+        #recorrrer l lista y encontrar el item con el iditemdl detalle
+        #reduciir el stock del item - pedidodetalle.cantidad
+        #guardar el stock del item
+        # Obtener los detalles del pedido
+        detalles_pedido = Tbldetallepedido.objects.filter(idpedido=idpedido)
+        # Crear una lista para almacenar los detalles
+        lista_detalles = list(detalles_pedido)
+        # Recorrer la lista de detalles
+        for detalle in lista_detalles:
+            # Obtener el ítem correspondiente al detalle
+            item = Tblitem.objects.get(idproduct=detalle.idproduct)
+            # Reducir el stock del ítem
+            item.stock -= detalle.cantidad
+            # Guardar los cambios en el ítem
+            item.save()
+        
         # Devolver la respuesta en formato JSON
         return HttpResponse(
             json.dumps(answer),
@@ -1111,8 +1137,11 @@ from django.utils.timezone import now
 from openpyxl.styles import Alignment, Font, PatternFill,Border, Side
 from openpyxl import Workbook
 from django.http import HttpResponse
+
+from django.db.models import OuterRef, Subquery, Max
+from django.forms.models import model_to_dict
 class TblitemViewSet(ModelViewSet):
-    queryset = Tblitem.objects.prefetch_related(
+    queryset = Tblitem.objects.filter(activo=True).prefetch_related(
         'clases_propiedades',
         'clases_propiedades__idclase'
         # 'clases_propiedades__propiedad'
@@ -1175,7 +1204,7 @@ class TblitemViewSet(ModelViewSet):
             query &= subquery
 
         # Obtener queryset filtrado
-        items = Tblitem.objects.filter(query).distinct()
+        items = Tblitem.objects.filter(activo=True).filter(query).distinct()
         
          # Aplicar ordenamiento manual
         ordering = data.get("ordering")
@@ -1227,30 +1256,107 @@ class TblitemViewSet(ModelViewSet):
         Obtiene el detalle completo del ítem junto con el número de pedidos y los ingresos totales.
         """
         try:
-            item = Tblitem.objects.get(pk=pk)
+            item = Tblitem.objects.filter(activo=True).get(pk=pk)
         except Tblitem.DoesNotExist:
             return Response({'error': 'El ítem no existe.'}, status=404)
 
+        ## quierosparar los pediodo que encuentren ese item por moneda que eso esta en su idpedido
+        ## y que se sumen los montos de preciototal  pero por moneda uq equeden separado tambien
+        ## tener el administracion id= 1 y sacar la moneda
+        ## tener el valor de ultimo tipocambio activo  de la moneda de administracion
+        ##  de las sumas de preciototal separados por moneda  que no coincidan con la moneda de adminisracion
+          ## que q esas sumas que no coincidad con el idmoneda entonces sean convertidos
+          ## convertidos por el valor deltipode cambio de la moneda 
         # Filtrar los pedidos que incluyen este ítem
-        detalles_pedidos = Tbldetallepedido.objects.filter(idproduct=item)
-
-        # Cálculo del número de pedidos y los ingresos totales
+        detalles_pedidos = Tbldetallepedido.objects.filter(activo=True).filter(idproduct=item)
         numero_pedidos = detalles_pedidos.count()
-        ingresos_totales = detalles_pedidos.aggregate(
-            total_ingresos=Sum(F('cantidad') * F('preciunitario'), output_field=DecimalField())
-        )['total_ingresos'] or 0
+                # Obtener la moneda de la administración
+        try:
+            admin = Administracion.objects.filter(activo=True).get(pk=1)
+            moneda_administracion = admin.idmoneda
+        except Administracion.DoesNotExist:
+            return Response({'error': 'No se encontró la configuración de administración.'}, status=500)
 
-        # Serializar el detalle del ítem
-        item_data = self.get_serializer(item).data
 
-        # Agregar información adicional
-        item_data.update({
-            'numero_pedidos': numero_pedidos,
-            'ingresos_totales': ingresos_totales,
+        
+        
+        
+
+        #from django.db.models import Sum, F, OuterRef, Subquery
+
+        # Obtener los ingresos por moneda (suma de ganancias)
+        ingresos_por_moneda = detalles_pedidos.values('idpedido__idmoneda').annotate(
+            total_ganancias=Sum(F('preciototal'))
+        )
+        print(ingresos_por_moneda)
+
+        # Obtener los tipos de cambio actuales para las monedas involucradas
+        monedas_ids = [ingreso['idpedido__idmoneda'] for ingreso in ingresos_por_moneda]
+
+        # Subconsulta para obtener la última fecha registrada de cada moneda
+        ultima_fecha_subquery = Tipocambio.objects.filter(
+            idmoneda=OuterRef('idmoneda'),
+            idmoneda__in=monedas_ids
+        ).order_by('-fecha').values('fecha')[:1]
+
+        # Filtrar los tipos de cambio usando la subconsulta
+        tipos_cambio = Tipocambio.objects.filter(
+            idmoneda__in=monedas_ids,
+            fecha=Subquery(ultima_fecha_subquery)
+        )
+
+        # Crear un diccionario de tipos de cambio (moneda -> tipo_cambio)
+        tipos_cambio_dict = {tipo.idmoneda.idmoneda: tipo.tipocambio for tipo in tipos_cambio}
+        print(tipos_cambio_dict)
+
+        # Inicializar el total de ingresos
+        total_ingresos_convertidos = 0
+        total_ingresos_sin_conversion = 0  # Ingresos en moneda de administración sin conversión
+
+        # Primer paso: Sumar los ingresos en la moneda original y convertir si es necesario
+        for ingreso in ingresos_por_moneda:
+            idmoneda = ingreso['idpedido__idmoneda']
+            total_ganancias = ingreso['total_ganancias']
+
+            # Si la moneda del pedido es la misma que la moneda de administración, sumamos directamente
+            if idmoneda == moneda_administracion.idmoneda:
+                total_ingresos_sin_conversion += total_ganancias
+                #total_ingresos_convertidos += Decimal(total_ganancias) / tipo_cambio
+            else:
+                # Si la moneda es diferente, convertimos las ganancias a la moneda de administración
+                if idmoneda in tipos_cambio_dict:
+                    tipo_cambio = tipos_cambio_dict[idmoneda]
+                    #total_ingresos_convertidos += total_ganancias / tipo_cambio
+                    total_ingresos_convertidos += Decimal(total_ganancias) * tipo_cambio
+                    print(f'Ingresos en moneda {idmoneda}: {total_ganancias} convertidos a la moneda de administración: {total_ingresos_convertidos}')
+
+        # Obtener el tipo de cambio de la moneda de administración
+        tipo_cambio_administracion = tipos_cambio_dict.get(moneda_administracion.idmoneda, 1)
+
+        # Convertir el total acumulado a la moneda de administración
+        total_final = total_ingresos_convertidos * tipo_cambio_administracion + Decimal(total_ingresos_sin_conversion)  # Convertir a Decimal
+
+
+        print(f'Total final en la moneda de administración: {total_final}')
+
+
+
+        
+        
+        
+        
+        serializer = TblitemSerializer(item)
+
+        # Agregar información adicional al diccionario serializado
+        item_data = serializer.data
+        item_data['numero_pedidos']= numero_pedidos
+        item_data['total_ingresos'] = round(total_final, 2)  # Suponiendo que total_final es calculado antes
+        item_data['moneda_administracion'] = moneda_administracion.nombre  # Asumiendo que tienes esta variable
+
+        # Retornar la respuesta con el detalle completo y la información adicional
+        return Response({
+            'item': item_data
         })
-
-        return Response(item_data)
-    
     
     #----------------------------------------------------------------
   
