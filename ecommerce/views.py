@@ -1268,7 +1268,17 @@ class TblitemViewSet(ModelViewSet):
           ## que q esas sumas que no coincidad con el idmoneda entonces sean convertidos
           ## convertidos por el valor deltipode cambio de la moneda 
         # Filtrar los pedidos que incluyen este ítem
-        detalles_pedidos = Tbldetallepedido.objects.filter(activo=True).filter(idproduct=item)
+       
+        # O si prefieres hacer una verificación más explícita, puedes realizar una subconsulta
+        # que solo tome los detalles de pedidos cuyo idpedido tiene un idtransaccion no nulo
+        detalles_pedidos_validos = Tbldetallepedido.objects.filter(
+            activo=True,
+            idproduct=item,
+            idpedido__idtransaccion__isnull=False,
+            idpedido__activo=True
+        )
+        detalles_pedidos = detalles_pedidos_validos
+        
         numero_pedidos = detalles_pedidos.count()
                 # Obtener la moneda de la administración
         try:
