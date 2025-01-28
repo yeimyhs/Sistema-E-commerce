@@ -750,31 +750,56 @@ from django.contrib.auth import login
 from .serializers import CustomAuthTokenSerializer
 from .models import CustomUser
 from .serializers import CustomUserSerializer
+from rest_framework.response import Response
+from rest_framework import status, permissions
+from django.contrib.auth import login
+from rest_framework.exceptions import ValidationError
+from knox.views import LoginView as KnoxLoginView
 
 class LoginView(KnoxLoginView):
     permission_classes = (permissions.AllowAny,)
 
     def post(self, request, format=None):
+        # Inicializar el serializer con los datos enviados
         serializer = CustomAuthTokenSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+
+        # Intentar validar el serializer
+        if not serializer.is_valid():
+            # Construir una respuesta de error uniforme en JSON
+            errors = serializer.errors
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "invalid_data",
+                        "message": "Se encontraron errores en los datos enviados.",
+                        "details": errors,  # Esto incluye los errores del serializer
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Recuperar el usuario autenticado desde el serializer
         user = serializer.validated_data["user"]
 
+        # Iniciar sesión
         login(request, user)
+
+        # Obtener la respuesta estándar de Knox
         response = super(LoginView, self).post(request, format=None)
 
-        # Agregar información adicional del usuario a la respuesta
+        # Serializar la información del usuario
         user_serializer = CustomUserSerializer(user)
-        response.data["user"] = user_serializer.data
 
-        return Response(
+        # Responder con un JSON que combine el token y la información del usuario
+        return JsonResponse(
             {
                 "success": True,
                 "token": response.data["token"],
-                "user": response.data["user"]
+                "user": user_serializer.data,
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
-
 #----------------------------------------------------------------------Login imports
 from rest_framework import permissions
 from rest_framework.authtoken.serializers import AuthTokenSerializer

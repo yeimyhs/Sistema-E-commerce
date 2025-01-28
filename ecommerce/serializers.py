@@ -11,30 +11,11 @@ from rest_framework.serializers import ModelSerializer
 
 from django.contrib.auth import authenticate
 from django.utils.translation import gettext_lazy as _
-class CustomAuthTokenSerializer(serializers.Serializer):
-    nombreusuario = serializers.CharField(label=_("Nombre de Usuario"))
-    password = serializers.CharField(label=_("Contraseña"), style={'input_type': 'password'}, trim_whitespace=False)
 
-    def validate(self, attrs):
-        nombreusuario = attrs.get('nombreusuario')
-        password = attrs.get('password')
+from rest_framework import serializers
+from django.contrib.auth import authenticate
+from .models import CustomUser
 
-        if nombreusuario and password:
-            user = authenticate(request=self.context.get('request'), username=nombreusuario, password=password)
-
-            if not user:
-                raise serializers.ValidationError(
-                    _("Credenciales inválidas. Por favor, intente de nuevo."),
-                    code='authorization'
-                )
-        else:
-            raise serializers.ValidationError(
-                _("Debe ingresar ambos campos: nombreusuario y password."),
-                code='authorization'
-            )
-
-        attrs['user'] = user
-        return attrs
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from .models import CustomUser
@@ -47,28 +28,82 @@ class CustomAuthTokenSerializer(serializers.Serializer):
         nombreusuario = attrs.get("nombreusuario")
         password = attrs.get("password")
 
-        if not nombreusuario or not password:
+        # Validar si faltan campos
+        if not nombreusuario and not password:
             raise serializers.ValidationError(
-                {"error": "El nombre de usuario y la contraseña son obligatorios."},
+                {
+                    "error": {
+                        "code": "missing_fields",
+                        "message": "El nombre de usuario y la contraseña son obligatorios."
+                    }
+                },
+                code="authorization",
+            )
+        elif not nombreusuario:
+            raise serializers.ValidationError(
+                {
+                    "error": {
+                        "code": "missing_username",
+                        "message": "El nombre de usuario es obligatorio."
+                    }
+                },
+                code="authorization",
+            )
+        elif not password:
+            raise serializers.ValidationError(
+                {
+                    "error": {
+                        "code": "missing_password",
+                        "message": "La contraseña es obligatoria."
+                    }
+                },
                 code="authorization",
             )
 
+        # Autenticar al usuario
         user = authenticate(nombreusuario=nombreusuario, password=password)
 
+        # Validar credenciales inválidas
         if not user:
             raise serializers.ValidationError(
-                {"error": "Credenciales inválidas. Por favor, intente de nuevo."},
+                {
+                    "error": {
+                        "code": "invalid_credentials",
+                        "message": "Las credenciales proporcionadas no son válidas. Por favor, intente de nuevo."
+                    }
+                },
                 code="authorization",
             )
 
+        # Verificar si la cuenta está deshabilitada
         if not user.estado:
             raise serializers.ValidationError(
-                {"error": "Esta cuenta está deshabilitada."},
+                {
+                    "error": {
+                        "code": "account_disabled",
+                        "message": "Esta cuenta está deshabilitada. Contacte con el administrador."
+                    }
+                },
                 code="authorization",
             )
 
+        # Validar si el usuario está inactivo
+        if not user.is_active:
+            raise serializers.ValidationError(
+                {
+                    "error": {
+                        "code": "account_inactive",
+                        "message": "Esta cuenta está inactiva. Por favor, contacte con el administrador."
+                    }
+                },
+                code="authorization",
+            )
+
+        # Si todo es válido, se retorna el usuario
         attrs["user"] = user
         return attrs
+    
+
 
 class TblitemBasicoSerializer(ModelSerializer):
 
