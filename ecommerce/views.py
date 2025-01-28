@@ -743,40 +743,60 @@ class BusqussedaDinamicaViewSet(viewsets.ViewSet):
         return Response({'items': resultado}, status=status.HTTP_200_OK)
     
 
+from knox.views import LoginView as KnoxLoginView
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import login
+from .serializers import CustomAuthTokenSerializer
+from .models import CustomUser
+from .serializers import CustomUserSerializer
+
 class LoginView(KnoxLoginView):
     permission_classes = (permissions.AllowAny,)
 
     def post(self, request, format=None):
         serializer = CustomAuthTokenSerializer(data=request.data)
-        try:
-            serializer.is_valid(raise_exception=True)
-        except ValidationError:
-            return Response({"error": "El nombreusuario y el password son obligatorios"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        user = serializer.validated_data.get('nombreusuario')
-        if user is None:
-            return Response({"error": "Credenciales Invalidas"}, status=status.HTTP_400_BAD_REQUEST)
-        user = CustomUser.objects.filter(nombreusuario=user).first()
-        if not user.estado:
-            return Response({"error": "Cuenta deshabilitada"}, status=status.HTTP_403_FORBIDDEN)
-        
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
+
         login(request, user)
         response = super(LoginView, self).post(request, format=None)
-        
-        # Serializar la información completa del usuario
-        user_serializer = CustomUserSerializer(user)
-        
-        # Combinar el token con los datos serializados del usuario
-        response.data["user"] = user_serializer.data
-        
-        return response
 
-    def throttled(self, request, wait):
+        # Agregar información adicional del usuario a la respuesta
+        user_serializer = CustomUserSerializer(user)
+        response.data["user"] = user_serializer.data
+
         return Response(
-            {"error": "Too many failed login attempts, please try again later"},
-            status=status.HTTP_429_TOO_MANY_REQUESTS
+            {
+                "success": True,
+                "token": response.data["token"],
+                "user": response.data["user"]
+            },
+            status=status.HTTP_200_OK
         )
 
+#----------------------------------------------------------------------Login imports
+from rest_framework import permissions
+from rest_framework.authtoken.serializers import AuthTokenSerializer
+from knox.views import LoginView as KnoxLoginView
+from django.contrib.auth import login
+class LoginViewm(KnoxLoginView):
+    
+    permission_classes = (permissions.AllowAny,)
+    @swagger_auto_schema( request_body=AuthTokenSerializer)
+
+    def post(self, request, format=None):
+        print(request)
+        serializer = AuthTokenSerializer(data=request.data)
+        print(serializer)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        login(request, user)
+        return super(LoginView, self).post(request, format=None)
+
+
+
+#
 class UserInfoView(APIView):
     permission_classes = [IsAuthenticated]
 

@@ -35,6 +35,40 @@ class CustomAuthTokenSerializer(serializers.Serializer):
 
         attrs['user'] = user
         return attrs
+from rest_framework import serializers
+from django.contrib.auth import authenticate
+from .models import CustomUser
+
+class CustomAuthTokenSerializer(serializers.Serializer):
+    nombreusuario = serializers.CharField(label="Nombre de usuario")
+    password = serializers.CharField(label="Contraseña", style={"input_type": "password"})
+
+    def validate(self, attrs):
+        nombreusuario = attrs.get("nombreusuario")
+        password = attrs.get("password")
+
+        if not nombreusuario or not password:
+            raise serializers.ValidationError(
+                {"error": "El nombre de usuario y la contraseña son obligatorios."},
+                code="authorization",
+            )
+
+        user = authenticate(nombreusuario=nombreusuario, password=password)
+
+        if not user:
+            raise serializers.ValidationError(
+                {"error": "Credenciales inválidas. Por favor, intente de nuevo."},
+                code="authorization",
+            )
+
+        if not user.estado:
+            raise serializers.ValidationError(
+                {"error": "Esta cuenta está deshabilitada."},
+                code="authorization",
+            )
+
+        attrs["user"] = user
+        return attrs
 
 class TblitemBasicoSerializer(ModelSerializer):
 
