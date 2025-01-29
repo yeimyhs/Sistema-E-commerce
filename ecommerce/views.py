@@ -787,14 +787,15 @@ class LoginView(KnoxLoginView):
 
         # Obtener la respuesta estándar de Knox
         response = super(LoginView, self).post(request, format=None)
-
+        expiry = response.data.get("expiry")
         # Serializar la información del usuario
         user_serializer = CustomUserSerializer(user)
 
         # Responder con un JSON que combine el token y la información del usuario
         return JsonResponse(
-            {
+            {   
                 "success": True,
+                "expiry": expiry,
                 "token": response.data["token"],
                 "user": user_serializer.data,
             },
