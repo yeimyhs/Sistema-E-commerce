@@ -398,11 +398,30 @@ class ClasesYPropiedadesView(APIView):
     def post(self, request):
         # JSON de entrada
         filtros = request.data
+        categoria_id = filtros.get('categoria')
 
-        # "filtro general"
-        filtro_general = []
-        clases = Tblitemclase.objects.all().prefetch_related('tblitempropiedad_set')
         
+        if not categoria_id:
+            items_filtrados = Tblitem.objects.filter(activo=True
+        )
+            poblacion = items_filtrados
+        else:
+        # Obtener los items relacionados con la categoría
+            items_filtrados = Tblitem.objects.filter(
+                categoria_relacionada__idcategoria=categoria_id, activo=True
+            )
+            poblacion = items_filtrados
+            
+
+        if not items_filtrados.exists():
+            return Response({'error': 'No hay ítems para esta categoría.'}, status=400)
+
+        # Obtener clases únicas desde los items filtrados
+        clases_ids = items_filtrados.values_list('clases_propiedades', flat=True).distinct()
+        clases = Tblitemclase.objects.filter(idclase__in=clases_ids).prefetch_related('tblitempropiedad_set')
+
+        filtro_general = []
+
         for clase in clases:
             vinculos = tblitemclasevinculo.objects.filter(
                 idclase=clase, activo=True
@@ -415,34 +434,26 @@ class ClasesYPropiedadesView(APIView):
                 "clase": clase.nombre,
                 "propiedades": propiedades_list
             })
-        
-        marcas = Marca.objects.all()
 
-        # Obtener todos los modelos con su idmarca
-        modelos = Tblmodelo.objects.all()
-
-        # Crear la lista de marcas
-        lista_marcas = [
-            {"id": marca.id, "nombre": marca.nombre}
-            for marca in marcas
-        ]
+        # Filtrar marcas en base a los items
+        marcas_ids = items_filtrados.values_list('idmodelo__idmarca', flat=True).distinct()
+        marcas = Marca.objects.filter(id__in=marcas_ids)
+        lista_marcas = [{"id": marca.id, "nombre": marca.nombre} for marca in marcas]
         filtro_general.append({"marcas": lista_marcas})
 
-        # Crear la lista de modelos
+        # Filtrar modelos en base a los items
+        modelos_ids = items_filtrados.values_list('idmodelo', flat=True).distinct()
+        modelos = Tblmodelo.objects.filter(id__in=modelos_ids)
         lista_modelos = [
             {"idmodelo": modelo.id, "nombre": modelo.nombre, "idmarca": modelo.idmarca.id if modelo.idmarca else None}
             for modelo in modelos
         ]
-        
-        
         filtro_general.append({"modelos": lista_modelos})
 
-        # Obtener todos los valores distintos de ancho
-        valores_ancho = Tblitem.objects.filter(activo=True).values_list('ancho', flat=True).distinct()
-        valores_ancho = [ancho for ancho in valores_ancho if ancho is not None]  # Excluir valores nulos
+        # Filtrar valores de ancho en base a los items
+        valores_ancho = items_filtrados.values_list('ancho', flat=True).distinct()
+        valores_ancho = [ancho for ancho in valores_ancho if ancho is not None]
         filtro_general.append({"anchos": valores_ancho})
-    
-            
         
         #-----------------------------------------------------------------
         #-----------------------------------------------------------------
@@ -458,7 +469,7 @@ class ClasesYPropiedadesView(APIView):
         }
 
         # Obtener la población inicial
-        poblacion = Tblitem.objects.filter(activo=True)
+        #poblacion = Tblitem.objects.filter(activo=True)
 
         # **Nivel 1: Filtro por ancho**
         
