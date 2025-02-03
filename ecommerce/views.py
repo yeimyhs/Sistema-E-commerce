@@ -1363,8 +1363,7 @@ class TblitemViewSet(ModelViewSet):
 
         # Crear un diccionario de tipos de cambio (moneda -> tipo_cambio)
         tipos_cambio_dict = {tipo.idmoneda.idmoneda: tipo.tipocambio for tipo in tipos_cambio}
-        print(tipos_cambio_dict)
-
+    
         # Inicializar el total de ingresos
         total_ingresos_convertidos = 0
         total_ingresos_sin_conversion = 0  # Ingresos en moneda de administración sin conversión
@@ -1384,17 +1383,12 @@ class TblitemViewSet(ModelViewSet):
                     tipo_cambio = tipos_cambio_dict[idmoneda]
                     #total_ingresos_convertidos += total_ganancias / tipo_cambio
                     total_ingresos_convertidos += Decimal(total_ganancias) * tipo_cambio
-                    print(f'Ingresos en moneda {idmoneda}: {total_ganancias} convertidos a la moneda de administración: {total_ingresos_convertidos}')
-
+            
         # Obtener el tipo de cambio de la moneda de administración
         tipo_cambio_administracion = tipos_cambio_dict.get(moneda_administracion.idmoneda, 1)
 
         # Convertir el total acumulado a la moneda de administración
         total_final = total_ingresos_convertidos * tipo_cambio_administracion + Decimal(total_ingresos_sin_conversion)  # Convertir a Decimal
-
-
-        print(f'Total final en la moneda de administración: {total_final}')
-
 
 
         
@@ -1816,6 +1810,8 @@ class TblitemViewSet(ModelViewSet):
                 try:
                     # Extraer datos
                     sku = row["CODIGO(SKU)"]
+                    estado = row["ESTADO"]
+                    #sku = row["CODIGO(SKU)"]
                     titulo = row["NOMBRE DEL PRODUCTO"]
                     stock = row["STOCK"]
                     precio_normal = row["PRECIO"]
@@ -1825,11 +1821,17 @@ class TblitemViewSet(ModelViewSet):
                     categoria_id = row.get("CATEGORIA", None)  # ID de la categoría
 
                     # Validar datos mínimos
-                    if not sku or not titulo or not marca_id or not modelo_id:
-                        raise ValueError("SKU, Título, Marca y Modelo son obligatorios.")
+                    if not sku or not titulo or not marca_id or not modelo_id or not estado :
+                        raise ValueError("SKU, Título, Estado, Ancho, Marca y Modelo son obligatorios.")
 
                     # Validar que la marca existemarc
                     
+                    if estado is not None:
+                        try:
+                            estado = int(estado)  # Convertir a entero, si es posible
+                        except ValueError:
+                            raise ValueError(f"El valor de 'ESTADO' para el SKU {sku} no es un número válido: {estado}")
+
                     try:
                         marca_instance = Marca.objects.get(id=marca_id)
                     except Marca.DoesNotExist:
@@ -1850,25 +1852,64 @@ class TblitemViewSet(ModelViewSet):
                     otros_datos = {
                                 "ancho": ancho,
                             }
+                    
+                    if ancho == 0:
+                        ancho = 0  # Puedes mantenerlo como 0 o manejarlo de acuerdo a tu lógica
+                    elif pd.isna(ancho):
+                        ancho = None 
+                    item = Tblitem.objects.filter(codigosku=sku).first() 
+                    #complementostock = 0,
                     # Crear o actualizar el producto
-                    item, created =  Tblitem.objects.update_or_create(
-                        codigosku=sku,
-                        defaults={
+                    # Intentar obtener el producto existente o crearlo
+                    # Buscar si el producto ya existe en la base de datos
+                    if item:
+                        update_data = {
                             "titulo": titulo,
-                            "stock": stock,
                             "precionormal": precio_normal,
                             "ancho": ancho,
                             "fechapublicacion": row.get("FECHA PUBLICACION") or now(),
                             "destacado": True,
                             "nuevoproducto": False,
-                            "estado": 1,
-                            "idmodelo": modelo_instance,  # Asignar el modelo validado
-                            **otros_datos,
-                        },
-                    )
-                    
+                            "idmodelo": modelo_instance,
+                            "estado": estado if estado is not None else item.estado,
+                        }
+                        
+                        if pd.notna(stock) and isinstance(stock, (int, float)) and stock >= 0:
+                            update_data["stock"] = stock  # Solo modificar si es válido
+
+                        for key, value in update_data.items():
+                            setattr(item, key, value)
+                        item.save()
+
+                    # Si el SKU no existe, verificar que el stock sea obligatorio
+                    else:
+                        if pd.isna(stock) or not isinstance(stock, (int, float)):
+                            raise ValueError(f"El SKU {sku} no existe y se debe especificar un stock válido.")
+
+                        item = Tblitem.objects.create(
+                            codigosku=sku,
+                            titulo=titulo,
+                            precionormal=precio_normal,
+                            ancho=ancho,
+                            fechapublicacion=row.get("FECHA PUBLICACION") or now(),
+                            destacado=True,
+                            nuevoproducto=False,
+                            estado=estado,  
+                            idmodelo=modelo_instance,
+                            stock=stock,  # Obligatorio
+                        )
+
+                  
+
                     item.categoria_relacionada.all().delete()  # Limpiar categorías existentes
                     tblitemcategoria.objects.create(iditem=item, idcategoria=categoria_instance)
+                    
+                    categorias_existentes = set(item.categoria_relacionada.values_list("idcategoria", flat=True))
+
+                    # Verificar si la categoría ya está asociada, si no, crear la relación
+                    if categoria_instance.id not in categorias_existentes:
+                        tblitemcategoria.objects.create(iditem=item, idcategoria=categoria_instance)
+
 
                     vinculos_data = {
                                 "PLIEGUES": row.get("PLIEGUES", None),
@@ -1883,27 +1924,38 @@ class TblitemViewSet(ModelViewSet):
                                 "RUNFLAT": row.get("RUNFLAT", None),
                                 "INDICE_CARGA": row.get("INDICE DE CARGA", None),
                             }
-                    
-        # Crear nuevos vínculos
-                    for key, value in vinculos_data.items():
-                        if value:
-                            # Buscar la clase por nombre
-                            clase_instance, _ = Tblitemclase.objects.get_or_create(
-                                nombre=key,
-                                defaults={"activo": True},
-                            )
-                            # Crear o actualizar el vínculo
-                            tblitemclasevinculo.objects.update_or_create(
-                                iditem=item,
-                                idclase=clase_instance,
-                                defaults={
-                                    "propiedad": value,
-                                    "activo": True,
-                                },
-                            )
-                    # Agregar el producto creado o actualizado a la lista
-                    created_or_updated_items.append(item)
+                    clases_existentes = {vinculo.idclase.nombre: vinculo for vinculo in tblitemclasevinculo.objects.filter(iditem=item)}
 
+        # Crear nuevos vínculos
+                    with transaction.atomic():
+                        # Crear nuevos vínculos
+                        for key, value in vinculos_data.items():
+                            try:
+                                if pd.notna(value):
+                # Si el valor no está vacío, lo procesamos
+                                    clase_instance, _ = Tblitemclase.objects.get_or_create(nombre=key, defaults={"activo": True})
+
+                                    if key in clases_existentes:
+                                        # Si ya existe, actualizar solo si el valor es diferente
+                                        vinculo = clases_existentes[key]
+                                        if vinculo.propiedad != value:
+                                            vinculo.propiedad = value
+                                            vinculo.activo = True
+                                            vinculo.save()
+                                    else:
+                                        # Si no existe, crearlo
+                                        tblitemclasevinculo.objects.create(iditem=item, idclase=clase_instance, propiedad=value, activo=True)
+                                else:
+                                    # Si el valor es nan, None o cadena vacía, eliminar el vínculo existente
+                                    if key in clases_existentes:
+                                        vinculo = clases_existentes[key]
+                                        print(f"Eliminando vínculo {key} porque su valor es nan o vacío")
+                                        vinculo.delete()
+                                        
+                            except Exception as e:
+            # Manejo de error específico para cada vínculo
+                                print(f"Error al procesar el vínculo {key}: {e}")
+                        created_or_updated_items.append(item)
                 except Exception as e:
                     # Registrar errores por fila
                     errors.append({
@@ -1946,8 +1998,9 @@ class TblitemViewSet(ModelViewSet):
         # Definir las columnas con sus descripciones y ejemplos
         columns = [
             ("CODIGO(SKU)", "SKU123456", "Obligatorio. Identificador único del producto."),
+            ("ESTADO", "1", "Obligatorio. Numero que representa el estadoactual del producto."),
             ("NOMBRE DEL PRODUCTO", "Llanta deportiva 17", "Obligatorio. Nombre del producto."),
-            ("STOCK", "100", "Obligatorio. Cantidad disponible."),
+            ("STOCK", "100", "Obligatorio. OBS : Caso especial: en caso de dejar vacio no hara modificacion, Cantidad disponible."),
             ("PRECIO", "59.99", "Obligatorio. Precio del producto (en formato numérico)."),
             ("MARCA", "1", "Obligatorio. ID de la marca (debe existir en el sistema)."),
             ("MODELO", "30", "Obligatorio. ID del modelo asociado a la marca."),
@@ -2225,6 +2278,33 @@ class TblpedidoViewSet(ModelViewSet):
                 detalle_serializer.save()
 
         return Response(pedido_serializer.data, status=status.HTTP_201_CREATED)
+    
+    
+    @action(detail=True, methods=['post'], url_path='cancelar')
+    def cancelar_pedido(self, request, pk=None):
+        try:
+            with transaction.atomic():
+                pedido = self.get_object()
+
+                if pedido.estado == 0:  # Suponiendo que 0 significa 'cancelado'
+                    return Response({"error": "El pedido ya está cancelado."}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Obtener los detalles del pedido
+                detalles = Tbldetallepedido.objects.filter(idpedido=pedido)
+                print(detalles)
+                for detalle in detalles:
+                    producto = detalle.idproduct
+                    producto.stock += detalle.cantidad
+                    producto.save()
+
+                # Cambiar estado del pedido a cancelado
+                pedido.estado = 0  
+                pedido.save()
+
+                return Response({"message": "Pedido cancelado y stock actualizado correctamente."}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class TblCarruselViewSet(ModelViewSet):
     queryset = TblCarrusel.objects.filter(activo=True).order_by('pk')
