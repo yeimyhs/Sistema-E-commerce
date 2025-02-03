@@ -1321,7 +1321,8 @@ class TblitemViewSet(ModelViewSet):
             activo=True,
             idproduct=item,
             idpedido__idtransaccion__isnull=False,
-            idpedido__activo=True
+            idpedido__activo=True,
+            idpedido__estado=1
         )
         detalles_pedidos = detalles_pedidos_validos
         
@@ -2272,6 +2273,23 @@ class TblpedidoViewSet(ModelViewSet):
 
             # Procesar los productos
             for producto in productos:
+                idproducto = producto.get('idproduct')  # Obtener el ID del producto
+                cantidad = producto.get('cantidad')
+                print(idproducto)
+                try:
+                    producto_obj = Tblitem.objects.get(pk=idproducto)
+                except Tblitem.DoesNotExist:
+                    raise ValidationError({'error': f'El producto {idproducto} no existe.'})
+                print(producto_obj.stock)
+                # Validar stock
+                if producto_obj.stock < cantidad:
+                    raise ValidationError({'error': f'Stock insuficiente para {producto_obj.descripcion}.'})
+
+                # Reducir stock del producto
+                producto_obj.stock -= cantidad
+                producto_obj.save()
+
+                # Crear el detalle del pedido
                 producto['idpedido'] = pedido.idpedido  # Asociamos el pedido
                 detalle_serializer = TbldetallepedidoSerializer(data=producto)
                 detalle_serializer.is_valid(raise_exception=True)
@@ -2457,8 +2475,7 @@ class TbldetallepedidoViewSet(ModelViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['idpedido__id', 'idproduct__descripcion']
     filterset_fields = ['activo', 'idpedido_id', 'idproduct_id', 'cantidad', 'preciototal', 'preciunitario']
-
-
+    
 
 class TransaccionViewSet(ModelViewSet):
     queryset = tblTransaccion.objects.filter(activo=True).order_by('pk')
