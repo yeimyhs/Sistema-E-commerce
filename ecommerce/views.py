@@ -400,18 +400,12 @@ class ClasesYPropiedadesView(APIView):
         filtros = request.data
         categoria_id = filtros.get('categoria')
 
-        
         if not categoria_id:
-            items_filtrados = Tblitem.objects.filter(activo=True
-        )
-            poblacion = items_filtrados
+            items_filtrados = Tblitem.objects.filter(activo=True)
         else:
-        # Obtener los items relacionados con la categoría
             items_filtrados = Tblitem.objects.filter(
                 categoria_relacionada__idcategoria=categoria_id, activo=True
             )
-            poblacion = items_filtrados
-            
 
         if not items_filtrados.exists():
             return Response({'error': 'No hay ítems para esta categoría.'}, status=400)
@@ -439,7 +433,6 @@ class ClasesYPropiedadesView(APIView):
         marcas_ids = items_filtrados.values_list('idmodelo__idmarca', flat=True).distinct()
         marcas = Marca.objects.filter(id__in=marcas_ids)
         lista_marcas = [{"id": marca.id, "nombre": marca.nombre} for marca in marcas]
-        filtro_general.append({"marcas": lista_marcas})
 
         # Filtrar modelos en base a los items
         modelos_ids = items_filtrados.values_list('idmodelo', flat=True).distinct()
@@ -448,13 +441,17 @@ class ClasesYPropiedadesView(APIView):
             {"idmodelo": modelo.id, "nombre": modelo.nombre, "idmarca": modelo.idmarca.id if modelo.idmarca else None}
             for modelo in modelos
         ]
-        filtro_general.append({"modelos": lista_modelos})
 
         # Filtrar valores de ancho en base a los items
         valores_ancho = items_filtrados.values_list('ancho', flat=True).distinct()
         valores_ancho = [ancho for ancho in valores_ancho if ancho is not None]
-        filtro_general.append({"anchos": valores_ancho})
-        
+
+        # ADAPTACIÓN AL FORMATO ANTIGUO: 
+        # En lugar de devolver marcas, modelos y anchos como estructuras separadas, 
+        # las agregamos dentro de filtro_general como en la versión errónea.
+        filtro_general.append({"marcas": lista_marcas})
+        filtro_general.append({"modelos": lista_modelos})
+        filtro_general.append({"anchos": valores_ancho}) 
         #-----------------------------------------------------------------
         #-----------------------------------------------------------------
         
