@@ -482,9 +482,7 @@ class ClasesYPropiedadesView(APIView):
         if ancho_filtro:
             # Filtrar por ancho recibido
             #ancho_filtro = float(ancho_filtro)
-            print(ancho_filtro)
             poblacion = poblacion.filter(ancho=ancho_filtro)
-            print(poblacion)
             # **Nivel 2: Filtro por perfil**
             # Obtener los vínculos relacionados con la clase "Perfil" (idclase=1)
             vinculados = tblitemclasevinculo.objects.filter(

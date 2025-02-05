@@ -165,7 +165,7 @@ class Tblitem(models.Model):
     #pliegues = models.CharField(max_length=20, blank=True, null=True)
     titulo = models.CharField(max_length=128)
     stock = models.IntegerField()
-    descripcion = models.TextField()
+    descripcion = models.TextField( blank=True, null=True)
     idproduct = models.BigAutoField(primary_key=True)
     #rangovelocidad = models.CharField(max_length=20, blank=True, null=True)
     destacado = models.BooleanField()
@@ -176,7 +176,7 @@ class Tblitem(models.Model):
         decimal_places=2, blank=True, null=True)  # This field type is a guess.
     precionormal = models.DecimalField(max_digits=20, decimal_places=2)  # This field type is a guess.
     imagenprincipal= models.ImageField(upload_to='imagenPrincipalItem/', blank=True, null=True)
-    fechapublicacion = models.DateTimeField()
+    fechapublicacion = models.DateTimeField(blank=True, null=True)
     peso = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)  # This field type is a guess.
     altura = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)  # This field type is a guess.
     profundidad = models.DecimalField(max_digits=20, decimal_places=2,blank=True, null=True)  # This field type is a guess.
