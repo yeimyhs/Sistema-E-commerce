@@ -420,10 +420,10 @@ class ClasesYPropiedadesView(APIView):
         clases_ids = tblitemclasevinculo.objects.filter(
             iditem__in=items_filtrados, activo=True
         ).values_list('idclase', flat=True).distinct()
-        clases = Tblitemclase.objects.filter(idclase__in=clases_ids).prefetch_related('vinculos')
+        clases = Tblitemclase.objects.filter(idclase__in=clases_ids).prefetch_related('vinculos').distinct()
   
         for clase in clases:
-            vinculos = tblitemclasevinculo.objects.filter(idclase=clase, activo=True)
+            vinculos = tblitemclasevinculo.objects.filter(idclase=clase, activo=True).distinct()
             propiedades_list = [{"nombre": v.propiedad} for v in vinculos]
 
             filtro_general.append({
