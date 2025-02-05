@@ -399,35 +399,40 @@ class ClasesYPropiedadesView(APIView):
         # JSON de entrada
         filtros = request.data
         categoria_id = filtros.get('categoria')
+  
 
         if not categoria_id:
-            items_filtrados = Tblitem.objects.filter(activo=True)
+            items_filtrados = Tblitem.objects.filter(activo=True
+        )
+            poblacion = items_filtrados
         else:
+        # Obtener los items relacionados con la categoría
             items_filtrados = Tblitem.objects.filter(
                 categoria_relacionada__idcategoria=categoria_id, activo=True
             )
+            poblacion = items_filtrados
+            
 
         if not items_filtrados.exists():
             return Response({'error': 'No hay ítems para esta categoría.'}, status=400)
 
-        # Obtener clases únicas desde los items filtrados
-        clases_ids = items_filtrados.values_list('clases_propiedades', flat=True).distinct()
-        clases = Tblitemclase.objects.filter(idclase__in=clases_ids).prefetch_related('tblitempropiedad_set')
-
         filtro_general = []
-
+        clases_ids = tblitemclasevinculo.objects.filter(
+            iditem__in=items_filtrados, activo=True
+        ).values_list('idclase', flat=True).distinct()
+        clases = Tblitemclase.objects.filter(idclase__in=clases_ids).prefetch_related('vinculos')
+  
         for clase in clases:
-            vinculos = tblitemclasevinculo.objects.filter(
-                idclase=clase, activo=True
-            ).values('propiedad').distinct()
+            vinculos = tblitemclasevinculo.objects.filter(idclase=clase, activo=True)
+            propiedades_list = [{"nombre": v.propiedad} for v in vinculos]
 
-            propiedades_list = [{"nombre": v['propiedad']} for v in vinculos]
             filtro_general.append({
                 "id": clase.pk,
                 "idclase": clase.idclase,
                 "clase": clase.nombre,
                 "propiedades": propiedades_list
             })
+
 
         # Filtrar marcas en base a los items
         marcas_ids = items_filtrados.values_list('idmodelo__idmarca', flat=True).distinct()

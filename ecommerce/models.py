@@ -492,7 +492,7 @@ class tblitemclasevinculo(models.Model):
     id = models.BigAutoField(db_column='Id', primary_key=True)  # Field name made lowercase.
     iditem = models.ForeignKey(Tblitem, on_delete=models.CASCADE, db_column='iditem', related_name='clases_propiedades')
     propiedad = models.CharField(max_length=225)
-    idclase = models.ForeignKey(Tblitemclase, on_delete=models.CASCADE, db_column='idclase')
+    idclase = models.ForeignKey(Tblitemclase, on_delete=models.CASCADE, db_column='idclase',related_name='vinculos' )
 
     class Meta:
         db_table = 'tblItemClaseVinculo'
