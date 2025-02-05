@@ -423,14 +423,15 @@ class ClasesYPropiedadesView(APIView):
         clases = Tblitemclase.objects.filter(idclase__in=clases_ids).prefetch_related('vinculos').distinct()
   
         for clase in clases:
-            vinculos = tblitemclasevinculo.objects.filter(idclase=clase, activo=True).distinct()
-            propiedades_list = [{"nombre": v.propiedad} for v in vinculos]
+            propiedades_list = tblitemclasevinculo.objects.filter(
+                idclase=clase, activo=True
+            ).values_list('propiedad', flat=True).distinct()  # Extraer solo nombres únicos de propiedades
 
             filtro_general.append({
                 "id": clase.pk,
                 "idclase": clase.idclase,
                 "clase": clase.nombre,
-                "propiedades": propiedades_list
+                "propiedades": [{"nombre": p} for p in propiedades_list]  # Formato requerido
             })
 
 
