@@ -1222,6 +1222,8 @@ from django.http import HttpResponse
 
 from django.db.models import OuterRef, Subquery, Max
 from django.forms.models import model_to_dict
+from openpyxl.utils import get_column_letter
+
 class TblitemViewSet(ModelViewSet):
     queryset = Tblitem.objects.filter(activo=True).prefetch_related(
         'clases_propiedades',
@@ -1839,6 +1841,8 @@ class TblitemViewSet(ModelViewSet):
                         {"error": f"Falta la columna requerida: {column}"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
+            skus_existentes = set(Tblitem.objects.values_list("codigosku", flat=True))
+            skus_en_archivo = set()  # Para almacenar los SKUs procesados desde el archivo
 
             # Procesar cada fila
             errors = []
@@ -1866,6 +1870,8 @@ class TblitemViewSet(ModelViewSet):
                     if estado is not None:
                         try:
                             estado = int(estado)  # Convertir a entero, si es posible
+                            activo = True if estado == 1 else False if estado == 0 else estado
+
                         except ValueError:
                             raise ValueError(f"El valor de 'ESTADO' para el SKU {sku} no es un número válido: {estado}")
 
@@ -1886,6 +1892,7 @@ class TblitemViewSet(ModelViewSet):
                     except Tblcategoria.DoesNotExist:
                         raise ValueError(f"La categoría con ID {categoria_id} no existe.")
                     
+                    skus_en_archivo.add(sku)
                     otros_datos = {
                                 "ancho": ancho,
                             }
@@ -1909,6 +1916,7 @@ class TblitemViewSet(ModelViewSet):
                             "nuevoproducto": False,
                             "idmodelo": modelo_instance,
                             "estado": estado if estado is not None else item.estado,
+                            "activo" : activo,
                         }
                         
                         if pd.notna(stock) and isinstance(stock, (int, float)) and stock >= 0:
@@ -1934,6 +1942,7 @@ class TblitemViewSet(ModelViewSet):
                             estado=estado,  
                             idmodelo=modelo_instance,
                             stock=stock,  # Obligatorio
+                            activo=activo,
                         )
 
                   
@@ -2000,6 +2009,9 @@ class TblitemViewSet(ModelViewSet):
                         "sku": row.get("CODIGO(SKU)", "Desconocido"),
                         "error": str(e),
                     })
+            # 3️Desactivar SKUs que no fueron incluidos en el archivo
+            skus_a_desactivar = skus_existentes - skus_en_archivo
+            cantidad_desactivados = Tblitem.objects.filter(codigosku__in=skus_a_desactivar).update(activo=False)
 
             # Responder con éxito parcial o total
             if errors:
@@ -2008,6 +2020,7 @@ class TblitemViewSet(ModelViewSet):
                         "message": "Carga masiva completada con errores.",
                         "errors": errors,
                         "items": TblitemSerializer(created_or_updated_items, many=True).data,
+                        
                     },
                     status=status.HTTP_207_MULTI_STATUS,
                 )
@@ -2015,6 +2028,9 @@ class TblitemViewSet(ModelViewSet):
             return Response({
                 "message": "Carga masiva completada con éxito.",
                 "items": TblitemSerializer(created_or_updated_items, many=True).data,
+                "cantidad_desactivados": cantidad_desactivados,
+                "desactivados": list(skus_a_desactivar),
+            
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -2106,6 +2122,104 @@ class TblitemViewSet(ModelViewSet):
         response["Content-Disposition"] = 'attachment; filename="plantilla_carga_masiva_horizontal.xlsx"'
         wb.save(response)
         return response
+    
+    @action(detail=False, methods=['get'], url_path='export-products')
+    def export_products(self, request):
+        """
+        Exportar los productos con sus vínculos a las clases y propiedades en un archivo Excel.
+        """
+        # Crear el archivo Excel
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Plantilla"
+
+        # Definir las columnas
+        headers = [
+            'CODIGO(SKU)', 'NOMBRE DEL PRODUCTO', 'STOCK', 'PRECIO', 'MARCA', 'ESTADO', 
+            'MODELO', 'CATEGORIA', 'ANCHO'
+        ]
+        
+        # Obtener todas las clases
+        clases = Tblitemclase.objects.all()
+
+        # Añadir los encabezados para las clases con su propiedad
+        for clase in clases:
+            headers.append(f"{clase.nombre} (Propiedad)")  # Añadimos columna con nombre de clase + propiedad
+
+        # Escribir los encabezados
+        ws.append(headers)
+
+        # Obtener los productos
+        productos = Tblitem.objects.all()
+
+        # Recorrer los productos y agregar la información
+        for producto in productos:
+            row = [
+                producto.codigosku,
+                producto.titulo,
+                producto.stock,
+                producto.preciorebajado if producto.preciorebajado else producto.precionormal,
+                producto.idmodelo.nombre if producto.idmodelo else "",
+                producto.estado,
+                producto.idmodelo.nombre if producto.idmodelo else "",
+            ]
+
+            # Obtener los IDs de las categorías asociadas al producto
+            categorias_ids = producto.categoria_relacionada.values_list('idcategoria', flat=True)
+            categoria_str = ", ".join(map(str, categorias_ids))  # Lista de IDs separados por coma
+            row.append(categoria_str)  # Añadir la lista de IDs de categorías a la fila
+
+            # Verificar si el producto está vinculado a alguna clase y agregar la propiedad
+            for clase in clases:
+                vinculo = tblitemclasevinculo.objects.filter(iditem=producto.pk, idclase=clase.idclase).first()
+                if vinculo:
+                    # Si está vinculado, colocar el valor de la propiedad en la celda
+                    row.append(vinculo.propiedad)
+                else:
+                    row.append("")  # Si no está vinculado, dejar la celda vacía
+
+            # Añadir la fila del producto
+            ws.append(row)
+
+        # Configurar los estilos
+        header_fill = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+        mandatory_fill = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
+        optional_fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
+        header_font = Font(bold=True)
+        border_style = Border(
+            left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin")
+        )
+
+        # Aplicar estilos a los encabezados
+        for col_num in range(1, len(headers) + 1):
+            cell = ws.cell(row=1, column=col_num)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.border = border_style
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        # Ajustar el ancho de las columnas
+        for col in range(1, len(headers) + 1):
+            max_length = 0
+            column = get_column_letter(col)
+            for row in ws.iter_rows(min_row=2, max_row=len(productos) + 1, min_col=col, max_col=col):
+                for cell in row:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(cell.value)
+                    except:
+                        pass
+            adjusted_width = (max_length + 2)
+            ws.column_dimensions[column].width = adjusted_width
+
+        # Preparar la respuesta HTTP
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = 'attachment; filename="plantilla_productos_vinculados.xlsx"'
+        wb.save(response)
+        return response
+
 #------------------------------------------------------------------
 from rest_framework.parsers import MultiPartParser
 import pandas as pd
