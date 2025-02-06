@@ -347,8 +347,15 @@ def process_payment(request):
             fecha_transaccion=authorization_response.get("authorizationDate", now())
         )
         
-        pedido = Tblpedido.objects.get(idpedido=idpedido)
+        #pedido = Tblpedido.objects.get(idpedido=idpedido)
+        try:
+            pedido = Tblpedido.objects.get(idpedido=idpedido, activo=True)
+            
+        except Tblpedido.DoesNotExist:
+            return HttpResponse(json.dumps({"error": "El pedido no existe o no está activo."}), status=404, content_type="application/json")
+
         pedido.idtransaccion = nueva_transaccion
+        pedido.estado = 2
         pedido.save()
         
         #guardaara el monto en un a variable 
@@ -364,29 +371,46 @@ def process_payment(request):
         #reduciir el stock del item - pedidodetalle.cantidad
         #guardar el stock del item
         # Obtener los detalles del pedido
-        detalles_pedido = Tbldetallepedido.objects.filter(idpedido=idpedido)
-        # Crear una lista para almacenar los detalles
-        lista_detalles = list(detalles_pedido)
-        # Recorrer la lista de detalles
-        for detalle in lista_detalles:
-            # Obtener el ítem correspondiente al detalle
-            item = Tblitem.objects.get(idproduct=detalle.idproduct)
-            # Reducir el stock del ítem
+        detalles_pedido = Tbldetallepedido.objects.filter(idpedido=pedido)
+        if not detalles_pedido.exists():
+            return HttpResponse(json.dumps({"error": "No hay detalles de pedido para procesar."}), status=404, content_type="application/json")
+
+        # Procesar reducción de stock
+        for detalle in detalles_pedido:
+            try:
+                item = Tblitem.objects.get(idproduct=detalle.idproduct)
+            except Tblitem.DoesNotExist:
+                pedido.estado = 5  # Estado de error
+                pedido.save()
+                return HttpResponse(json.dumps({"error": f"Producto con ID {detalle.idproduct} no encontrado."}), status=404, content_type="application/json")
+
+            # Verificar si hay suficiente stock
+            if item.stock < detalle.cantidad:
+                pedido.estado = 5  # Estado de error
+                pedido.save()
+                return HttpResponse(json.dumps({
+                    "error": f"Stock insuficiente para el producto {item.nombre}. Disponible: {item.stock}, Requerido: {detalle.cantidad}"
+                }), status=400, content_type="application/json")
+
+            # Reducir stock
             item.stock -= detalle.cantidad
-            # Guardar los cambios en el ítem
             item.save()
-        
-        # Devolver la respuesta en formato JSON
-        return HttpResponse(
-            json.dumps(answer),
-            content_type='application/json'
-        )
-        
+
+        # Si todo salió bien, marcar como pagado (Estado 4)
+        pedido.estado = 4
+        pedido.save()
+
+        return HttpResponse(json.dumps({"message": "Pago procesado y stock actualizado correctamente."}), content_type="application/json")
+
     except json.JSONDecodeError:
-        return HttpResponse('Invalid JSON', status=400)
-    except Exception as e:
-        return HttpResponse(str(e), status=500)
+        pedido.estado = 5  # Estado de error
+        pedido.save()
+        return HttpResponse(json.dumps({"error": "Formato JSON inválido."}), status=400, content_type="application/json")
     
+    except Exception as e:
+        pedido.estado = 5  # Estado de error
+        pedido.save()
+        return HttpResponse(json.dumps({"error": str(e)}), status=500, content_type="application/json")
     
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -2298,8 +2322,8 @@ class TblpedidoViewSet(ModelViewSet):
                     raise ValidationError({'error': f'Stock insuficiente para {producto_obj.descripcion}.'})
 
                 # Reducir stock del producto
-                producto_obj.stock -= cantidad
-                producto_obj.save()
+                #producto_obj.stock -= cantidad
+                #producto_obj.save()
 
                 # Crear el detalle del pedido
                 producto['idpedido'] = pedido.idpedido  # Asociamos el pedido
