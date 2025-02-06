@@ -309,67 +309,58 @@ def check_hash(data, key):
 from django.utils.timezone import now
 from decimal import Decimal
 from django.db import transaction
-
 @csrf_exempt
 @transaction.atomic
 def process_payment(request):
     if request.method != 'POST':
         return HttpResponse('Método no permitido', status=405)
     
+    pedido = None  # Definir la variable antes de usarla en cualquier excepción
+    
     try:
         # Decodificar el JSON recibido
         data = json.loads(request.body.decode('utf-8'))
+        
         # PASO 1: verificar la firma con SHA_KEY
         if not check_hash(data, SHA_KEY):
             return HttpResponse('Invalid signature.<br/>', status=400)
-   
-        
+
         # Preparar la respuesta siguiendo el formato original
         answer = {
-            'message':'OK',
+            'message': 'OK',
             'kr-hash': data.get('kr-hash'),
             'kr-hash-algorithm': data.get('kr-hash-algorithm'),
             'kr-answer-type': data.get('kr-answer-type'),
             'kr-answer': data.get('kr-answer')
         }
+
         transaccion_data = data.get("kr-answer", {}).get("transactions", [])[0]
         card_details = transaccion_data.get("transactionDetails", {}).get("cardDetails", {})
         authorization_response = card_details.get("authorizationResponse", {})
         user_info = transaccion_data.get("transactionDetails", {}).get("userInfo", "DESCONOCIDO")
         idpedido = data.get("kr-answer", {}).get("orderDetails", {}).get("orderId")
+
         # Crear nueva transacción
-        nueva_transaccion = tblTransaccion.objects.create(
+        nueva_transaccion, created = tblTransaccion.objects.update_or_create(
             transaccion_id=transaccion_data.get("uuid"),
-            metodo_pago=transaccion_data.get("paymentMethodType", "DESCONOCIDO"),
-            nombre_en_tarjeta=card_details.get("cardHolderName")or user_info,
-            numero_tarjeta=card_details.get("pan", "XXXX XXXX XXXX XXXX"),
-            monto_total=Decimal(authorization_response.get("amount", 0)) / 100,  # Asumimos que el monto está en centavos
-            fecha_transaccion=authorization_response.get("authorizationDate", now())
+            defaults={
+                "metodo_pago": transaccion_data.get("paymentMethodType", "DESCONOCIDO"),
+                "nombre_en_tarjeta": card_details.get("cardHolderName") or user_info,
+                "numero_tarjeta": card_details.get("pan", "XXXX XXXX XXXX XXXX"),
+                "monto_total": Decimal(authorization_response.get("amount", 0)) / 100,
+                "fecha_transaccion": authorization_response.get("authorizationDate", now()),
+            }
         )
-        
-        #pedido = Tblpedido.objects.get(idpedido=idpedido)
+
         try:
             pedido = Tblpedido.objects.get(idpedido=idpedido, activo=True)
-            
         except Tblpedido.DoesNotExist:
             return HttpResponse(json.dumps({"error": "El pedido no existe o no está activo."}), status=404, content_type="application/json")
 
         pedido.idtransaccion = nueva_transaccion
         pedido.estado = 2
         pedido.save()
-        
-        #guardaara el monto en un a variable 
-        #moneda del pedido
-        #busquela moneda actual de la tabla administradcion 
-        #if no coincidencia de la moneda administracion y l moneda del pedido
-        #entonces que el mmonto lo 
-        
-        
-        #tarer los detalles de  pedido 
-        #guardarlos en una lista
-        #recorrrer l lista y encontrar el item con el iditemdl detalle
-        #reduciir el stock del item - pedidodetalle.cantidad
-        #guardar el stock del item
+
         # Obtener los detalles del pedido
         detalles_pedido = Tbldetallepedido.objects.filter(idpedido=pedido)
         if not detalles_pedido.exists():
@@ -378,7 +369,7 @@ def process_payment(request):
         # Procesar reducción de stock
         for detalle in detalles_pedido:
             try:
-                item = Tblitem.objects.get(idproduct=detalle.idproduct)
+                item = detalle.idproduct
             except Tblitem.DoesNotExist:
                 pedido.estado = 5  # Estado de error
                 pedido.save()
@@ -400,18 +391,21 @@ def process_payment(request):
         pedido.estado = 4
         pedido.save()
 
-        return HttpResponse(json.dumps({"message": "Pago procesado y stock actualizado correctamente."}), content_type="application/json")
+        return HttpResponse(json.dumps(answer), content_type='application/json')
 
     except json.JSONDecodeError:
-        pedido.estado = 5  # Estado de error
-        pedido.save()
+        if pedido:  # Evitar el error si pedido aún no ha sido asignado
+            pedido.estado = 5
+            pedido.save()
         return HttpResponse(json.dumps({"error": "Formato JSON inválido."}), status=400, content_type="application/json")
-    
+
     except Exception as e:
-        pedido.estado = 5  # Estado de error
-        pedido.save()
+        if pedido:  # Evitar el error si pedido aún no ha sido asignado
+            pedido.estado = 5
+            pedido.save()
         return HttpResponse(json.dumps({"error": str(e)}), status=500, content_type="application/json")
-    
+
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db.models import Count
