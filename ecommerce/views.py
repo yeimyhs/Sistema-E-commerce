@@ -1334,7 +1334,7 @@ class TblitemViewSet(ModelViewSet):
             idproduct=item,
             idpedido__idtransaccion__isnull=False,
             idpedido__activo=True,
-            idpedido__estado=1
+            idpedido__estado=2
         )
         detalles_pedidos = detalles_pedidos_validos
         
@@ -2316,7 +2316,7 @@ class TblpedidoViewSet(ModelViewSet):
             with transaction.atomic():
                 pedido = self.get_object()
 
-                if pedido.estado == 0:  # Suponiendo que 0 significa 'cancelado'
+                if pedido.estado == 4:  # Suponiendo que 0 significa 'cancelado'
                     return Response({"error": "El pedido ya está cancelado."}, status=status.HTTP_400_BAD_REQUEST)
 
                 # Obtener los detalles del pedido
@@ -2328,7 +2328,7 @@ class TblpedidoViewSet(ModelViewSet):
                     producto.save()
 
                 # Cambiar estado del pedido a cancelado
-                pedido.estado = 0  
+                pedido.estado = 4
                 pedido.save()
 
                 return Response({"message": "Pedido cancelado y stock actualizado correctamente."}, status=status.HTTP_200_OK)
