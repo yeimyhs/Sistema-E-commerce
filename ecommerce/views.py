@@ -1217,7 +1217,31 @@ from django.http import HttpResponse
 from django.db.models import OuterRef, Subquery, Max
 from django.forms.models import model_to_dict
 from openpyxl.utils import get_column_letter
+from django.http import StreamingHttpResponse
+from openpyxl import Workbook
+import csv
 
+from io import BytesIO
+from django.db.models import Prefetch
+from openpyxl.styles import PatternFill, Font, Border, Side, Alignment
+class ExcelStreamingResponse:
+    def __init__(self):
+        self.wb = Workbook()
+        self.ws = self.wb.active
+        self.ws.title = "Plantilla"
+
+    def write_headers(self, headers):
+        self.ws.append(headers)
+
+    def write_row(self, row):
+        self.ws.append(row)
+
+    def generate(self):
+        from io import BytesIO
+        output = BytesIO()
+        self.wb.save(output)
+        output.seek(0)
+        yield output.read()
 class TblitemViewSet(ModelViewSet):
     queryset = Tblitem.objects.filter(activo=True).prefetch_related(
         'clases_propiedades',
@@ -2212,6 +2236,74 @@ class TblitemViewSet(ModelViewSet):
         )
         response["Content-Disposition"] = 'attachment; filename="plantilla_productos_vinculados.xlsx"'
         wb.save(response)
+        return response
+    
+    
+    
+    @action(detail=False, methods=['get'], url_path='exportv2')
+    def stream_excel_response(self, request):
+        """
+        Exportar productos optimizado con Pandas
+        """
+
+        # Obtener clases una sola vez
+        clases = Tblitemclase.objects.values_list("idclase", "nombre")
+
+        # Prefetch relaciones para evitar consultas múltiples
+        productos = Tblitem.objects.select_related(
+            "idmodelo"
+        ).prefetch_related(
+            Prefetch("categoria_relacionada"),
+            Prefetch("clases_propiedades", queryset=tblitemclasevinculo.objects.select_related("idclase"))
+).all()
+
+        # Crear estructura de datos para Pandas
+        data = []
+        for producto in productos:
+            row = {
+                "CODIGO(SKU)": producto.codigosku,
+                "NOMBRE DEL PRODUCTO": producto.titulo,
+                "STOCK": producto.stock,
+                "PRECIO": producto.preciorebajado if producto.preciorebajado else producto.precionormal,
+                "MARCA": producto.idmodelo.nombre if producto.idmodelo else "",
+                "ESTADO": producto.estado,
+                "MODELO": producto.idmodelo.nombre if producto.idmodelo else "",
+                "CATEGORIA": ", ".join(str(c.idcategoria.pk) for c in producto.categoria_relacionada.all()),
+            }
+
+            # Agregar propiedades de cada clase
+            for idclase, nombre in clases:
+                vinculo = next((v for v in producto.clases_propiedades.all() if v.idclase_id == idclase), None)
+                row[f"{nombre}"] = vinculo.propiedad.upper() if vinculo else ""
+
+            data.append(row)
+
+        # Convertir datos en DataFrame
+        df = pd.DataFrame(data)
+
+        # Guardar en un buffer
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            df.to_excel(writer, sheet_name="Plantilla", index=False)
+
+            # Aplicar estilos con xlsxwriter
+            workbook = writer.book
+            worksheet = writer.sheets["Plantilla"]
+
+            header_format = workbook.add_format(
+                {"bold": True, "bg_color": "#FFC000", "border": 1, "align": "center"}
+            )
+
+            for col_num, value in enumerate(df.columns):
+                worksheet.write(0, col_num, value, header_format)
+                worksheet.set_column(col_num, col_num, 20)  # Ajustar ancho de columnas
+
+        # Configurar respuesta HTTP
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = 'attachment; filename="plantilla_productos_vinculados.xlsx"'
         return response
 
 #------------------------------------------------------------------
