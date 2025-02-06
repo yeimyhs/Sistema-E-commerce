@@ -206,7 +206,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 from datetime import timedelta
 
 REST_KNOX = {
-    'TOKEN_TTL': timedelta(days=14),  # Token válido por 2 semanas
+    'TOKEN_TTL': timedelta(days=7),  # Token válido por 2 semanas
     'AUTO_REFRESH': True,  # Renueva el token con cada solicitud autenticada
 }
 
