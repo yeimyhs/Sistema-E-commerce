@@ -1334,7 +1334,7 @@ class TblitemViewSet(ModelViewSet):
             idproduct=item,
             idpedido__idtransaccion__isnull=False,
             idpedido__activo=True,
-            idpedido__estado=2
+            idpedido__estado__in=[2, 4]
         )
         detalles_pedidos = detalles_pedidos_validos
         
