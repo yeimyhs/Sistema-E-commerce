@@ -309,6 +309,13 @@ def check_hash(data, key):
 from django.utils.timezone import now
 from decimal import Decimal
 from django.db import transaction
+
+
+from django.core.mail import EmailMessage
+from django.conf import settings
+from django.utils.html import format_html
+
+
 @csrf_exempt
 @transaction.atomic
 def process_payment(request):
@@ -351,46 +358,175 @@ def process_payment(request):
                 "fecha_transaccion": authorization_response.get("authorizationDate", now()),
             }
         )
-
         try:
-            pedido = Tblpedido.objects.get(idpedido=idpedido, activo=True)
-        except Tblpedido.DoesNotExist:
-            return HttpResponse(json.dumps({"error": "El pedido no existe o no está activo."}), status=404, content_type="application/json")
+            with transaction.atomic():
+            
+                try:
+                    pedido = Tblpedido.objects.get(idpedido=idpedido, activo=True)
+                except Tblpedido.DoesNotExist:
+                    return HttpResponse(json.dumps({"error": "El pedido no existe o no está activo."}), status=404, content_type="application/json")
 
-        pedido.idtransaccion = nueva_transaccion
-        pedido.estado = 2
-        pedido.save()
-
-        # Obtener los detalles del pedido
-        detalles_pedido = Tbldetallepedido.objects.filter(idpedido=pedido)
-        if not detalles_pedido.exists():
-            return HttpResponse(json.dumps({"error": "No hay detalles de pedido para procesar."}), status=404, content_type="application/json")
-
-        # Procesar reducción de stock
-        for detalle in detalles_pedido:
-            try:
-                item = detalle.idproduct
-            except Tblitem.DoesNotExist:
-                pedido.estado = 5  # Estado de error
+                pedido.idtransaccion = nueva_transaccion
+                pedido.estado = 2
                 pedido.save()
-                return HttpResponse(json.dumps({"error": f"Producto con ID {detalle.idproduct} no encontrado."}), status=404, content_type="application/json")
 
-            # Verificar si hay suficiente stock
-            if item.stock < detalle.cantidad:
-                pedido.estado = 5  # Estado de error
-                pedido.save()
-                return HttpResponse(json.dumps({
-                    "error": f"Stock insuficiente para el producto {item.nombre}. Disponible: {item.stock}, Requerido: {detalle.cantidad}"
-                }), status=400, content_type="application/json")
+                # Obtener los detalles del pedido
+                detalles_pedido = Tbldetallepedido.objects.filter(idpedido=pedido)
+                if not detalles_pedido.exists():
+                    return HttpResponse(json.dumps({"error": "No hay detalles de pedido para procesar."}), status=404, content_type="application/json")
 
-            # Reducir stock
-            item.stock -= detalle.cantidad
-            item.save()
+                # Procesar reducción de stock
+                for detalle in detalles_pedido:
+                        try:
+                            item = detalle.idproduct
+                        except Tblitem.DoesNotExist:
+                            pedido.estado = 5  # Estado de error
+                            pedido.save()
+                            return HttpResponse(json.dumps({"error": f"Producto con ID {detalle.idproduct} no encontrado."}), status=404, content_type="application/json")
+
+                        # Verificar si hay suficiente stock
+                        if item.stock < detalle.cantidad:
+                            pedido.estado = 5  # Estado de error
+                            pedido.save()
+                            return HttpResponse(json.dumps({
+                                "error": f"Stock insuficiente para el producto {item.titulo} - SKU({item.codigosku} - {item.pk}). Disponible: {item.stock}, Requerido: {detalle.cantidad}"
+                            }), status=400, content_type="application/json")
+
+                        # Reducir stock
+                        item.stock -= detalle.cantidad
+                        item.save()
+        except ValueError as e:
+            pedido.estado = 5  # Estado de error
+            pedido.save()
+            return HttpResponse(json.dumps({"error": str(e)}), status=400, content_type="application/json")
 
         # Si todo salió bien, marcar como pagado (Estado 4)
         pedido.estado = 4
         pedido.save()
 
+
+
+
+        #--------------------------------------------------------
+        
+        # Preparar los datos para el correo
+        email_cliente = pedido.idcliente.email
+        user_email  = email_cliente
+        user_id  = pedido.idcliente.pk
+        email_admin = settings.DEFAULT_FROM_EMAIL  # Correo del remitente configurado en settings
+        total_pedido = nueva_transaccion.monto_total
+
+        # Construir detalles del pedido en formato HTML
+        detalles_html = "".join([
+            f"<tr><td>{detalle.idproduct.titulo}</td><td>{detalle.cantidad}</td><td>${detalle.idproduct.precionormal:.2f}</td></tr>"
+            for detalle in detalles_pedido
+        ])
+
+        # Crear cuerpo del correo en HTML
+        html_mensaje_cliente = format_html(f"""
+<html>
+<body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; display: flex; justify-content: center;">
+    <div style="max-width: 600px; width: 100%; background: white; border-radius: 8px; overflow: hidden; 
+                box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1); border-top: 6px solid rgb(254, 206, 0);">
+
+        <!-- Encabezado -->
+        <div style="padding: 20px; text-align: center; border-bottom: 2px solid #ddd;">
+            <h2 style="color: #2c3e50; margin: 0;">🎉 ¡Gracias por tu compra, {user_info}!</h2>
+            <p style="color: #7a7a7a; margin-top: 5px;">Tu pedido ha sido recibido y pronto será procesado.</p>
+        </div>
+
+        <!-- Detalles del Pedido -->
+        <div style="padding: 20px;">
+            <h3 style="color: #2c3e50; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Resumen del Pedido</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <tr style="background-color: rgb(254, 206, 0); color: black;">
+                    <th style="text-align: left; padding: 10px; border-bottom: 2px solid #ddd;">Producto</th>
+                    <th style="text-align: left; padding: 10px; border-bottom: 2px solid #ddd;">Cantidad</th>
+                    <th style="text-align: left; padding: 10px; border-bottom: 2px solid #ddd;">Precio</th>
+                </tr>
+                {detalles_html} <!-- Filas dinámicas con los productos -->
+            </table>
+
+            <p style="margin-top: 15px; font-size: 18px; text-align: right; border-top: 2px solid #ddd; padding-top: 10px;">
+                <strong>Total pagado:</strong> <span style="color: black;">${total_pedido:.2f}</span>
+            </p>
+
+            <p style="color: #555; text-align: center; margin-top: 15px;">
+                Si tienes alguna duda, no dudes en contactarnos.<br/>
+                📧 <a href="mailto:soporte@tuempresa.com" style="color: #2c3e50; text-decoration: none;">soporte@tuempresa.com</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+""")
+
+        # Enviar correo al cliente si su email está disponible
+        if email_cliente:
+            email = EmailMessage(
+                subject="Confirmación de compra",
+                body=html_mensaje_cliente,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[email_cliente],
+            )
+            email.content_subtype = "html"  # Importante para que el correo sea interpretado como HTML
+            email.send()
+
+        # Enviar correo al administrador con información del pedido
+        html_mensaje_admin = format_html(f"""
+<html>
+<body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; display: flex; justify-content: center;">
+    <div style="max-width: 600px; width: 100%; background: white; border-radius: 8px; overflow: hidden; 
+                box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1); border-top: 6px solid rgb(254, 206, 0);">
+
+        <!-- Encabezado -->
+        <div style="padding: 20px; text-align: center; border-bottom: 2px solid #ddd;">
+            <h2 style="color: #2c3e50; margin: 0;">🛒 Nuevo Pedido Recibido</h2>
+            <p style="color: #7a7a7a; margin-top: 5px;">Detalles del pedido a continuación:</p>
+        </div>
+
+        <!-- Sección de Información -->
+        <div style="padding: 20px;">
+            <div style="background-color: #f8f8f8; padding: 15px; border-radius: 5px;">
+                <p style="margin: 5px 0; color: #333;"><strong>ID Pedido:</strong> <span style="color: rgb(254, 206, 0);">{pedido.idpedido}</span></p>
+                <p style="margin: 5px 0; color: #333;"><strong>ID Usuario:</strong> {user_id}</p>
+                <p style="margin: 5px 0; color: #333;"><strong>Correo Usuario:</strong> {user_email}</p>
+                <p style="margin: 5px 0; color: #333;"><strong>Usuario:</strong> {user_info}</p>
+                <p style="margin: 5px 0; color: #333;"><strong>Transacción:</strong> {nueva_transaccion.transaccion_id}</p>
+            </div>
+
+            <h3 style="color: #2c3e50; margin-top: 20px; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Detalles del Pedido</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px; background: white;">
+                <tr style="background-color: rgb(254, 206, 0); color: black;">
+                    <th style="text-align: left; padding: 10px; border-bottom: 2px solid #ddd;">Producto</th>
+                    <th style="text-align: left; padding: 10px; border-bottom: 2px solid #ddd;">Cantidad</th>
+                    <th style="text-align: left; padding: 10px; border-bottom: 2px solid #ddd;">Precio</th>
+                </tr>
+                {detalles_html} <!-- Filas dinámicas con los productos -->
+            </table>
+
+            <p style="margin-top: 15px; font-size: 18px; text-align: right; border-top: 2px solid #ddd; padding-top: 10px;">
+                <strong>Total pagado:</strong> <span style="color: black;">${total_pedido:.2f}</span>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+""")
+
+
+
+
+
+        email_admin = EmailMessage(
+            subject=f"Nuevo pedido recibido  #{pedido.idpedido}",
+            body=html_mensaje_admin,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[email_admin],
+        )
+        email_admin.content_subtype = "html"
+        email_admin.send()
+        #--------------------------------------
         return HttpResponse(json.dumps(answer), content_type='application/json')
 
     except json.JSONDecodeError:
