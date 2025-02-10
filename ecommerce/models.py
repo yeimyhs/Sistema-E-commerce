@@ -367,6 +367,11 @@ class Tblsede(models.Model):
     id = models.BigAutoField(primary_key=True)
     nombre = models.CharField(max_length=128)
     direccion = models.TextField()
+    
+    departamento = models.CharField(max_length=100, verbose_name="Departamento", blank=True, null=True)
+    provincia = models.CharField(max_length=100, verbose_name="Provincia", blank=True, null=True)
+    distrito = models.CharField(max_length=100, verbose_name="Distrito", blank=True, null=True)
+    
     telefono = models.CharField(max_length=20, verbose_name="Celular o Teléfono")
     linkmaps = models.URLField(blank=True)
     email = models.EmailField(verbose_name="Correo Electrónico")

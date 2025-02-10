@@ -2606,7 +2606,11 @@ class TblnoticiaViewSet(ModelViewSet):
 
 class TblsedeViewSet(ModelViewSet):
     queryset = Tblsede.objects.filter(activo=True).order_by('pk')
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
     serializer_class = TblsedeSerializer
+    search_fields = ['direccion', 'nombre', 'email','departamento','provincia','distrito']
+    filterset_fields = ['activo', 'direccion', 'nombre', 'email','departamento','provincia','distrito','telefono', 'direccion']
+
 
 class TblpedidoViewSet(ModelViewSet):
     @swagger_auto_schema(
