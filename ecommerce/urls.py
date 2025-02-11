@@ -28,7 +28,7 @@ urlpatterns = [
     path('clases_propiedades/', views.ClasesYPropiedadesView.as_view(), name='clases_propiedades'),
     path('filtrobusqueda/', views.BusquedaDinamicaViewSet.as_view({'post': 'create'})),
     
-    path('bulkitem/', views.BulkUploadItemsAPIView.as_view()),
+    #path('bulkitem/', views.BulkUploadItemsAPIView.as_view()),
     
     path("upload-images/", views.upload_images, name="upload_images"),
     #path('upload_xlsx/', views.upload_xlsx, name='upload_xlsx'),
