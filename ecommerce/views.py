@@ -401,7 +401,7 @@ def process_payment(request):
             return HttpResponse(json.dumps({"error": str(e)}), status=400, content_type="application/json")
 
         # Si todo salió bien, marcar como pagado (Estado 4)
-        pedido.estado = 4
+        pedido.estado = 2
         pedido.save()
 
 
