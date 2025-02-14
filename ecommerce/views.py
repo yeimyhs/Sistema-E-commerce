@@ -1378,6 +1378,10 @@ class ExcelStreamingResponse:
         self.wb.save(output)
         output.seek(0)
         yield output.read()
+        
+        
+import pandas as pd
+
 class TblitemViewSet(ModelViewSet):
     queryset = Tblitem.objects.filter(activo=True).prefetch_related(
         'clases_propiedades',
@@ -1970,6 +1974,7 @@ class TblitemViewSet(ModelViewSet):
         
         # Crear en masa los registros de relaciones
         Tblitemrelacionado.objects.bulk_create(items_relacionados)
+
 
     @action(detail=False, methods=['post'], url_path='bulk-upload')
     @transaction.atomic
