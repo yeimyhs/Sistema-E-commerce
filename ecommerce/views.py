@@ -1980,222 +1980,243 @@ class TblitemViewSet(ModelViewSet):
     @transaction.atomic
     def bulk_upload(self, request):
         """
-        Carga masiva de productos desde un archivo Excel con validación de dependencias entre marca y modelo.
+        Carga masiva de productos desde un archivo Excel.
+        - Solo permite SKUs nuevos. Si un SKU ya existe, se muestra un error.
+        - `activo` siempre se establece en True.
+        - `estado` se establece según la columna en el archivo.
         """
         try:
-            # Verifica si hay un archivo en la solicitud
             file = request.FILES.get('file')
             if not file:
                 return Response({"error": "No se ha proporcionado ningún archivo."},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-            # Leer el archivo Excel (saltando la primera fila de encabezados)
             df = pd.read_excel(file, header=1)
 
-            # Validar que las columnas requeridas existan
-            required_columns = ["CODIGO(SKU)", "NOMBRE DEL PRODUCTO", "STOCK", "PRECIO", "MARCA", "MODELO"]
+            required_columns = ["CODIGO(SKU)", "NOMBRE DEL PRODUCTO", "STOCK", "PRECIO", "MARCA", "MODELO", "ESTADO"]
             for column in required_columns:
                 if column not in df.columns:
                     return Response(
                         {"error": f"Falta la columna requerida: {column}"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
-            skus_existentes = set(Tblitem.objects.values_list("codigosku", flat=True))
-            skus_en_archivo = set()  # Para almacenar los SKUs procesados desde el archivo
 
-            # Procesar cada fila
+            skus_existentes = set(Tblitem.objects.values_list("codigosku", flat=True))
             errors = []
-            created_or_updated_items = []
+            created_items = []
+
             for index, row in df.iterrows():
                 try:
-                    # Extraer datos
                     sku = row["CODIGO(SKU)"]
-                    estado = row["ESTADO"]
-                    #sku = row["CODIGO(SKU)"]
                     titulo = row["NOMBRE DEL PRODUCTO"]
                     stock = row["STOCK"]
                     precio_normal = row["PRECIO"]
                     marca_id = row["MARCA"]
                     modelo_id = row["MODELO"]
+                    estado = row["ESTADO"]
                     ancho = row.get("ANCHO", None)
-                    categoria_id = row.get("CATEGORIA", None)  # ID de la categoría
+                    categoria_id = row.get("CATEGORIA", None)
 
-                    # Validar datos mínimos
-                    if not sku or not titulo or not marca_id or not modelo_id or not estado :
-                        raise ValueError("SKU, Título, Estado, Ancho, Marca y Modelo son obligatorios.")
+                    # Verificar si el SKU ya existe
+                    if sku in skus_existentes:
+                        errors.append({
+                            "fila": index + 2,
+                            "sku": sku,
+                            "error": "El SKU ya existe en la base de datos. Debe eliminarse antes de agregarlo nuevamente."
+                        })
+                        continue  # Pasar al siguiente registro sin procesar este
 
-                    # Validar que la marca existemarc
-                    
-                    if estado is not None:
-                        try:
-                            estado = int(estado)  # Convertir a entero, si es posible
-                            activo = True if estado == 1 else False if estado == 0 else estado
+                    # Validaciones mínimas
+                    if not sku or not titulo or not marca_id or not modelo_id or not estado:
+                        raise ValueError("Los campos SKU, Nombre, Estado, Marca y Modelo son obligatorios.")
 
-                        except ValueError:
-                            raise ValueError(f"El valor de 'ESTADO' para el SKU {sku} no es un número válido: {estado}")
+                    # Convertir estado a número
+                    try:
+                        estado = int(estado)
+                    except ValueError:
+                        raise ValueError(f"El valor de 'ESTADO' para el SKU {sku} no es un número válido.")
 
+                    # Validar existencia de marca
                     try:
                         marca_instance = Marca.objects.get(id=marca_id)
                     except Marca.DoesNotExist:
                         raise ValueError(f"La marca con ID {marca_id} no existe.")
 
-                    # Validar que el modelo existe y pertenece a la marca
+                    # Validar modelo pertenece a la marca
                     try:
                         modelo_instance = Tblmodelo.objects.get(id=modelo_id, idmarca=marca_id)
                     except Tblmodelo.DoesNotExist:
-                        raise ValueError(
-                            f"El modelo con ID {modelo_id} no existe o no pertenece a la marca con ID {marca_id}."
-                        )
+                        raise ValueError(f"El modelo con ID {modelo_id} no existe o no pertenece a la marca {marca_id}.")
+
+                    # Validar categoría si existe
                     try:
                         categoria_instance = Tblcategoria.objects.get(id=categoria_id)
                     except Tblcategoria.DoesNotExist:
                         raise ValueError(f"La categoría con ID {categoria_id} no existe.")
-                    
-                    skus_en_archivo.add(sku)
-                    otros_datos = {
-                                "ancho": ancho,
-                            }
-                    
-                    if ancho == 0:
-                        ancho = 0  # Puedes mantenerlo como 0 o manejarlo de acuerdo a tu lógica
-                    elif pd.isna(ancho):
-                        ancho = None 
-                    item = Tblitem.objects.filter(codigosku=sku).first() 
-                    #complementostock = 0,
-                    # Crear o actualizar el producto
-                    # Intentar obtener el producto existente o crearlo
-                    # Buscar si el producto ya existe en la base de datos
-                    if item:
-                        update_data = {
-                            "titulo": titulo,
-                            "precionormal": precio_normal,
-                            "ancho": ancho,
-                            "fechapublicacion": row.get("FECHA PUBLICACION") or now(),
-                            "destacado": True,
-                            "nuevoproducto": False,
-                            "idmodelo": modelo_instance,
-                            "estado": estado if estado is not None else item.estado,
-                            "activo" : activo,
-                        }
-                        
-                        if pd.notna(stock) and isinstance(stock, (int, float)) and stock >= 0:
-                            update_data["stock"] = stock  # Solo modificar si es válido
 
-                        for key, value in update_data.items():
-                            setattr(item, key, value)
-                        item.save()
+                    # Convertir ancho
+                    if pd.isna(ancho):
+                        ancho = None
+                    elif ancho == 0:
+                        ancho = 0  # Mantenerlo en 0 si viene así
 
-                    # Si el SKU no existe, verificar que el stock sea obligatorio
-                    else:
-                        if pd.isna(stock) or not isinstance(stock, (int, float)):
-                            raise ValueError(f"El SKU {sku} no existe y se debe especificar un stock válido.")
+                    # Crear el producto con activo=True
+                    item = Tblitem.objects.create(
+                        codigosku=sku,
+                        titulo=titulo,
+                        precionormal=precio_normal,
+                        ancho=ancho,
+                        fechapublicacion=row.get("FECHA PUBLICACION") or now(),
+                        destacado=True,
+                        nuevoproducto=False,
+                        estado=estado,  # Se asigna según la columna del archivo
+                        idmodelo=modelo_instance,
+                        stock=stock,
+                        activo=True,  # Siempre se establece en True
+                    )
 
-                        item = Tblitem.objects.create(
-                            codigosku=sku,
-                            titulo=titulo,
-                            precionormal=precio_normal,
-                            ancho=ancho,
-                            fechapublicacion=row.get("FECHA PUBLICACION") or now(),
-                            destacado=True,
-                            nuevoproducto=False,
-                            estado=estado,  
-                            idmodelo=modelo_instance,
-                            stock=stock,  # Obligatorio
-                            activo=activo,
-                        )
-
-                  
-
-                    item.categoria_relacionada.all().delete()  # Limpiar categorías existentes
+                    # Asociar categoría
                     tblitemcategoria.objects.create(iditem=item, idcategoria=categoria_instance)
-                    
-                    categorias_existentes = set(item.categoria_relacionada.values_list("idcategoria", flat=True))
 
-                    # Verificar si la categoría ya está asociada, si no, crear la relación
-                    if categoria_instance.id not in categorias_existentes:
-                        tblitemcategoria.objects.create(iditem=item, idcategoria=categoria_instance)
-
-
+                    # Procesar vínculos adicionales
                     vinculos_data = {
-                                "PLIEGUES": row.get("PLIEGUES", None),
-                                "IC_IV": row.get("IC/IV", None),
-                                "APLICACION": row.get("APLICACIÓN", None),
-                                "SERVICIO": row.get("SERVICIO", None),
-                                "ARO": row.get("ARO", None),
-                                "ARO_PERMITIDO": row.get("ARO PERMITIDO", None),
-                                "PERFIL": row.get("PERFIL", None),
-                                "PRESENTACION": row.get("PRESENTACION", None),
-                                "RANGO_VELOCIDAD": row.get("RANGO VELOCIDAD", None),
-                                "RUNFLAT": row.get("RUNFLAT", None),
-                                "INDICE_CARGA": row.get("INDICE DE CARGA", None),
-                            }
-                    clases_existentes = {vinculo.idclase.nombre: vinculo for vinculo in tblitemclasevinculo.objects.filter(iditem=item)}
+                        "PLIEGUES": row.get("PLIEGUES", None),
+                        "IC_IV": row.get("IC/IV", None),
+                        "APLICACION": row.get("APLICACIÓN", None),
+                        "SERVICIO": row.get("SERVICIO", None),
+                        "ARO": row.get("ARO", None),
+                        "ARO_PERMITIDO": row.get("ARO PERMITIDO", None),
+                        "PERFIL": row.get("PERFIL", None),
+                        "PRESENTACION": row.get("PRESENTACION", None),
+                        "RANGO_VELOCIDAD": row.get("RANGO VELOCIDAD", None),
+                        "RUNFLAT": row.get("RUNFLAT", None),
+                        "INDICE_CARGA": row.get("INDICE DE CARGA", None),
+                    }
 
-        # Crear nuevos vínculos
                     with transaction.atomic():
-                        # Crear nuevos vínculos
                         for key, value in vinculos_data.items():
                             try:
-                                if pd.notna(value):
-                # Si el valor no está vacío, lo procesamos
+                                if pd.notna(value):  # Si el valor no está vacío
                                     clase_instance, _ = Tblitemclase.objects.get_or_create(nombre=key, defaults={"activo": True})
-
-                                    if key in clases_existentes:
-                                        # Si ya existe, actualizar solo si el valor es diferente
-                                        vinculo = clases_existentes[key]
-                                        if vinculo.propiedad != value:
-                                            vinculo.propiedad = value
-                                            vinculo.activo = True
-                                            vinculo.save()
-                                    else:
-                                        # Si no existe, crearlo
-                                        tblitemclasevinculo.objects.create(iditem=item, idclase=clase_instance, propiedad=value, activo=True)
-                                else:
-                                    # Si el valor es nan, None o cadena vacía, eliminar el vínculo existente
-                                    if key in clases_existentes:
-                                        vinculo = clases_existentes[key]
-                                        print(f"Eliminando vínculo {key} porque su valor es nan o vacío")
-                                        vinculo.delete()
-                                        
+                                    tblitemclasevinculo.objects.create(iditem=item, idclase=clase_instance, propiedad=value, activo=True)
                             except Exception as e:
-            # Manejo de error específico para cada vínculo
                                 print(f"Error al procesar el vínculo {key}: {e}")
-                        created_or_updated_items.append(item)
+
+                    created_items.append(item)
+
                 except Exception as e:
-                    # Registrar errores por fila
                     errors.append({
-                        "fila": index + 3,  # +3 porque pandas usa 0-index y hay dos encabezados
+                        "fila": index + 2,
                         "sku": row.get("CODIGO(SKU)", "Desconocido"),
                         "error": str(e),
                     })
-            # 3️Desactivar SKUs que no fueron incluidos en el archivo
-            skus_a_desactivar = skus_existentes - skus_en_archivo
-            cantidad_desactivados = Tblitem.objects.filter(codigosku__in=skus_a_desactivar).update(estado=0)
 
-            # Responder con éxito parcial o total
             if errors:
                 return Response(
                     {
                         "message": "Carga masiva completada con errores.",
                         "errors": errors,
-                        "items": TblitemSerializer(created_or_updated_items, many=True).data,
-                        
+                        "items_creados": TblitemSerializer(created_items, many=True).data,
                     },
                     status=status.HTTP_207_MULTI_STATUS,
                 )
 
             return Response({
                 "message": "Carga masiva completada con éxito.",
-                "items": TblitemSerializer(created_or_updated_items, many=True).data,
-                "cantidad_desactivados": cantidad_desactivados,
-                "desactivados": list(skus_a_desactivar),
-            
+                "items_creados": TblitemSerializer(created_items, many=True).data,
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response({"error": f"Error inesperado: {str(e)}"},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    @action(detail=False, methods=['post'], url_path='bulk-edit')
+    @transaction.atomic
+    def bulk_update(self, request):
+        """
+        Edición masiva de productos desde un archivo Excel.
+        - Actualiza STOCK, PRECIO y PRECIO REBAJADO solo si tienen valores.
+        - Activa los SKUs presentes en el archivo.
+        - Desactiva los SKUs no incluidos en el archivo.
+        """
+        try:
+            file = request.FILES.get('file')
+            if not file:
+                return Response({"error": "No se ha proporcionado ningún archivo."},
+                                status=status.HTTP_400_BAD_REQUEST)
 
+            # Leer archivo
+            df = pd.read_excel(file, header=1)
+
+            # Validar columnas requeridas
+            required_columns = ["CODIGO(SKU)", "STOCK", "PRECIO", "PRECIO REBAJADO"]
+            for column in required_columns:
+                if column not in df.columns:
+                    return Response(
+                        {"error": f"Falta la columna requerida: {column}"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            # Obtener SKUs existentes
+            skus_existentes = Tblitem.objects.values_list("codigosku", flat=True)
+            skus_en_archivo = set()
+            errors = []
+            updated_items = []
+
+            for index, row in df.iterrows():
+                sku = row["CODIGO(SKU)"]
+                stock = row.get("STOCK", None)
+                precio = row.get("PRECIO", None)
+                precio_rebajado = row.get("PRECIO REBAJADO", None)
+
+                if not sku:
+                    errors.append({"fila": index + 2, "error": "El SKU es obligatorio."})
+                    continue
+
+                try:
+                    item = Tblitem.objects.get(codigosku=sku)
+                except Tblitem.DoesNotExist:
+                    errors.append({"fila": index + 2, "sku": sku, "error": "El SKU no existe. Debe ser creado previamente."})
+                    continue
+
+                # Solo actualizar si los valores no son NaN
+                update_data = {"estado": 1}  # Asegurar que el SKU se mantenga activo
+                if pd.notna(stock) and isinstance(stock, (int, float)) and stock >= 0:
+                    update_data["stock"] = stock
+                if pd.notna(precio) and isinstance(precio, (int, float)) and precio >= 0:
+                    update_data["precionormal"] = precio
+                if pd.notna(precio_rebajado) and isinstance(precio_rebajado, (int, float)) and precio_rebajado >= 0:
+                    update_data["preciorebajado"] = precio_rebajado
+
+                # Aplicar cambios si hay algo que actualizar
+                for key, value in update_data.items():
+                    setattr(item, key, value)
+                item.save()
+                updated_items.append(item)
+
+                skus_en_archivo.add(sku)
+
+            # Desactivar SKUs que no están en el archivo
+            skus_a_desactivar = set(skus_existentes) - skus_en_archivo
+            cantidad_desactivados = Tblitem.objects.filter(codigosku__in=skus_a_desactivar).update(estado=0)
+
+            # Respuesta final
+            if errors:
+                return Response({
+                    "message": "Edición masiva completada con errores.",
+                    "errors": errors,
+                    "items_actualizados": TblitemSerializer(updated_items, many=True).data,
+                    "cantidad_desactivados": cantidad_desactivados,
+                }, status=status.HTTP_207_MULTI_STATUS)
+
+            return Response({
+                "message": "Edición masiva completada con éxito.",
+                "items_actualizados": TblitemSerializer(updated_items, many=True).data,
+                "cantidad_desactivados": cantidad_desactivados,
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": f"Error inesperado: {str(e)}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['get'], url_path='download-template')
     def download_template(self, request):
