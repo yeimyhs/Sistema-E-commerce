@@ -2129,6 +2129,62 @@ class TblitemViewSet(ModelViewSet):
         except Exception as e:
             return Response({"error": f"Error inesperado: {str(e)}"},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    
+    @action(detail=False, methods=['get'], url_path='descargar-plantilla-edicion')
+    def descargar_plantilla_edicion(self, request):
+        """
+        Genera y devuelve una plantilla en Excel con colores, bordes y explicaciones claras.
+        """
+        # Definir las filas explicativas
+        explicaciones = [
+            "📌 Identificador único del producto (OBLIGATORIO)",
+            "🔢 Cantidad disponible (Si se deja vacío, NO se actualiza)",
+            "💰 Precio normal del producto (Si se deja vacío, NO se actualiza)",
+            "💲 Precio con descuento (Si se deja vacío, NO se actualiza)"
+        ]
+
+        nombres_columnas = ["CODIGO(SKU)", "STOCK", "PRECIO", "PRECIO REBAJADO"]
+
+        valores_permitidos = [
+            "Ejemplo: SKU12345",
+            "Ejemplo: 50 (Solo números, sin decimales)",
+            "Ejemplo: 199.99 (Usar punto para decimales)",
+            "Ejemplo: 149.99 (Menor que PRECIO)"
+        ]
+
+        # Crear DataFrame con las filas explicativas
+        df = pd.DataFrame([explicaciones, nombres_columnas, valores_permitidos])
+
+        # Crear la respuesta HTTP con el archivo Excel
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename=plantilla_edicion.xlsx'
+
+        # Guardar el DataFrame en el archivo Excel con formato
+        with pd.ExcelWriter(response, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, header=False, sheet_name="Plantilla")
+
+            # Obtener el workbook y la hoja activa
+            workbook = writer.book
+            worksheet = writer.sheets["Plantilla"]
+
+            # Definir formatos de celda
+            format_explicaciones = workbook.add_format({'bold': True, 'bg_color': '#FFD966', 'border': 1, 'align': 'center', 'valign': 'vcenter', 'text_wrap': True})
+            format_encabezados = workbook.add_format({'bold': True, 'bg_color': '#FFEB9C', 'border': 1, 'align': 'center', 'valign': 'vcenter'})
+            format_valores = workbook.add_format({'italic': True, 'bg_color': '#D9EAD3', 'border': 1, 'align': 'center', 'valign': 'vcenter'})
+
+            # Aplicar formatos a las filas
+            worksheet.set_row(0, 30, format_explicaciones)  # Primera fila: explicaciones
+            worksheet.set_row(1, 20, format_encabezados)    # Segunda fila: nombres de columnas
+            worksheet.set_row(2, 20, format_valores)        # Tercera fila: valores permitidos
+
+            # Ajustar ancho de columnas
+            worksheet.set_column("A:D", 30)
+
+        return response
+    
+    
+    
     @action(detail=False, methods=['post'], url_path='bulk-edit')
     @transaction.atomic
     def bulk_update(self, request):
