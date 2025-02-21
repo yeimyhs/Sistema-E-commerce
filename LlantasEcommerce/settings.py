@@ -142,7 +142,7 @@ DATABASES = {
         'USER': 'compratu_slipnotxx',
         #'PASSWORD': 'yeimyhs',
         'PASSWORD': 'Slipnotxx1408',
-        'HOST': '/var/run/postgresql',
+        'HOST': 'localhost',
         'PORT': '5432',
     }
 }
