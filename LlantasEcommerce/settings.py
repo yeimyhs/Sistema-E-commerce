@@ -28,7 +28,7 @@ SECRET_KEY = 'django-insecure-fy!^t*0#ay+^3m-07_$&qcblx9uapsj&^a^eog0a#sw51(gx44
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*",'190.237.97.231','servicesgrupoiap.ddns.net','ecommercellantas.onrender.com', '127.0.0.1:8000', '127.0.0.1']
+ALLOWED_HOSTS = ["*","106.0.62.101","compratullanta.com",'190.237.97.231','servicesgrupoiap.ddns.net','ecommercellantas.onrender.com', '127.0.0.1:8000', '127.0.0.1']
 
 
 # Application definition
@@ -124,11 +124,23 @@ WSGI_APPLICATION = 'LlantasEcommerce.wsgi.application'
         'PORT': '5433',
     }
 }'''
+'''
 DATABASES = {
     'default': {
         # Sqlite
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'dbpoblada.sqlite3',
+    }
+}
+'''
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'pruebamigracionllantas',
+        'USER': 'postgres',
+        'PASSWORD': 'yeimyhs',
+        'HOST': 'localhost',
+        'PORT': '5433',
     }
 }
 
