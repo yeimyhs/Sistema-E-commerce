@@ -139,7 +139,7 @@ DATABASES = {
         #'NAME': 'pruebamigracionllantas',
         'NAME': 'compratu_pruebamigracionllantas',
         #'USER': 'postgres',
-        'USER': 'compratu_aplicacionesgs',
+        'USER': 'compratu_slipnotxx',
         #'PASSWORD': 'yeimyhs',
         'PASSWORD': 'Slipnotxx1408',
         'HOST': 'localhost',
