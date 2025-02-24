@@ -144,6 +144,9 @@ DATABASES = {
         'PASSWORD': 'Slipnotxx1408',
         'HOST': 'localhost',
         'PORT': '5432',
+        'OPTIONS': {
+                'options': '-c search_path=public'
+            }
     }
 }
 
