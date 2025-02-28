@@ -135,7 +135,7 @@ DATABASES = {
 '''
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django.db.backends.mysql',
         #'NAME': 'pruebamigracionllantas',
         'NAME': 'compratu_pruebamigracionllantas',
         #'USER': 'postgres',
