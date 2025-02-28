@@ -143,10 +143,12 @@ DATABASES = {
         #'PASSWORD': 'yeimyhs',
         'PASSWORD': 'Slipnotxx1408',
         'HOST': 'localhost',
-        'PORT': '5432',
+        #'PORT': '5432',
+        'PORT': '3306',
         'OPTIONS': {
-                'options': '-c search_path=public'
-            }
+            'charset': 'utf8mb4',
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
+        }
     }
 }
 
