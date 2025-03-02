@@ -1995,7 +1995,8 @@ class TblitemViewSet(ModelViewSet):
 
 # Normalizar caracteres especiales
             df = df.applymap(lambda x: x.encode("utf-8", "ignore").decode("utf-8") if isinstance(x, str) else x)
-            df = df.applymap(lambda x: unidecode(x) if isinstance(x, str) else x)
+            df = df.applymap(lambda x: unidecode.unidecode(x) if isinstance(x, str) else x)
+
             required_columns = ["CODIGO(SKU)", "NOMBRE DEL PRODUCTO", "STOCK", "PRECIO", "MARCA", "MODELO", "ESTADO"]
             for column in required_columns:
                 if column not in df.columns:
