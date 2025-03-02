@@ -1381,14 +1381,7 @@ class ExcelStreamingResponse:
         
         
 import pandas as pd
-import unidecode
-import tempfile
-def convert_excel_to_utf8(file):
-        """Convierte un archivo Excel a un CSV UTF-8 temporal para evitar problemas de codificación."""
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv", mode="w", encoding="utf-8") as temp_csv:
-            df = pd.read_excel(file, header=1, dtype=str, engine="openpyxl")
-            df.to_csv(temp_csv.name, index=False, encoding="utf-8")  # Guarda en UTF-8 limpio
-            return temp_csv.name  # Devuelve la ruta del archivo convertido
+
 class TblitemViewSet(ModelViewSet):
     queryset = Tblitem.objects.filter(activo=True).prefetch_related(
         'clases_propiedades',
@@ -1981,28 +1974,18 @@ class TblitemViewSet(ModelViewSet):
         
         # Crear en masa los registros de relaciones
         Tblitemrelacionado.objects.bulk_create(items_relacionados)
-    
-   
+
+
+
     @action(detail=False, methods=['post'], url_path='bulk-upload')
-    @transaction.atomic
     def bulk_upload(self, request):
-        """
-        Carga masiva de productos desde un archivo Excel.
-        - Solo permite SKUs nuevos. Si un SKU ya existe, se muestra un error.
-        - `activo` siempre se establece en True.
-        - `estado` se establece según la columna en el archivo.
-        """
         try:
             file = request.FILES.get('file')
             if not file:
                 return Response({"error": "No se ha proporcionado ningún archivo."},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-            # ⚡ Leer archivo en UTF-8 y asegurarse de que no hay problemas de codificación
-            file_path = convert_excel_to_utf8(file)  # Convierte el archivo antes de procesarlo
-            df = pd.read_csv(file_path, dtype=str, encoding="utf-8") 
-            # ⚡ Convertir todas las celdas a Unicode y eliminar espacios en blanco innecesarios
-            df = df.applymap(lambda x: str(x).strip() if isinstance(x, str) else x)
+            df = pd.read_excel(file, header=1, dtype=str, engine="openpyxl")
 
             required_columns = ["CODIGO(SKU)", "NOMBRE DEL PRODUCTO", "STOCK", "PRECIO", "MARCA", "MODELO", "ESTADO"]
             for column in required_columns:
@@ -2014,8 +1997,9 @@ class TblitemViewSet(ModelViewSet):
 
             skus_existentes = set(Tblitem.objects.values_list("codigosku", flat=True))
             errors = []
-            created_items = []
+            validated_data = []  # Guardará los datos válidos antes de guardar
 
+            # 🔍 **1. Validar todas las filas antes de guardar en la BD**
             for index, row in df.iterrows():
                 try:
                     sku = row["CODIGO(SKU)"]
@@ -2028,92 +2012,54 @@ class TblitemViewSet(ModelViewSet):
                     ancho = row.get("ANCHO", None)
                     categoria_id = row.get("CATEGORIA", None)
 
-                    # Verificar si el SKU ya existe
                     if sku in skus_existentes:
                         errors.append({
                             "fila": index + 2,
                             "sku": sku,
-                            "error": "El SKU ya existe en la base de datos. Debe eliminarse antes de agregarlo nuevamente."
+                            "error": "El SKU ya existe en la base de datos.",
                         })
-                        continue  # Pasar al siguiente registro sin procesar este
+                        continue  # No procesar este SKU, pero seguir con los demás
 
-                    # Validaciones mínimas
                     if not sku or not titulo or not marca_id or not modelo_id or not estado:
                         raise ValueError("Los campos SKU, Nombre, Estado, Marca y Modelo son obligatorios.")
 
-                    # Convertir estado a número
-                    try:
-                        estado = int(estado)
-                    except ValueError:
-                        raise ValueError(f"El valor de 'ESTADO' para el SKU {sku} no es un número válido.")
+                    estado = int(estado)
 
-                    # Validar existencia de marca
-                    try:
-                        marca_instance = Marca.objects.get(id=marca_id)
-                    except Marca.DoesNotExist:
+                    # Validar existencia de datos en la BD **antes de la transacción**
+                    if not Marca.objects.filter(id=marca_id).exists():
                         raise ValueError(f"La marca con ID {marca_id} no existe.")
 
-                    # Validar modelo pertenece a la marca
-                    try:
-                        modelo_instance = Tblmodelo.objects.get(id=modelo_id, idmarca=marca_id)
-                    except Tblmodelo.DoesNotExist:
+                    if not Tblmodelo.objects.filter(id=modelo_id, idmarca=marca_id).exists():
                         raise ValueError(f"El modelo con ID {modelo_id} no existe o no pertenece a la marca {marca_id}.")
 
-                    # Validar categoría si existe
-                    try:
-                        categoria_instance = Tblcategoria.objects.get(id=categoria_id)
-                    except Tblcategoria.DoesNotExist:
+                    if categoria_id and not Tblcategoria.objects.filter(id=categoria_id).exists():
                         raise ValueError(f"La categoría con ID {categoria_id} no existe.")
 
-                    # Convertir ancho
-                    if pd.isna(ancho):
-                        ancho = None
-                    elif ancho == 0:
-                        ancho = 0  # Mantenerlo en 0 si viene así
-
-                    # Crear el producto con activo=True
-                    item = Tblitem.objects.create(
-                        codigosku=sku,
-                        titulo=titulo,
-                        precionormal=precio_normal,
-                        ancho=ancho,
-                        fechapublicacion=row.get("FECHA PUBLICACION") or now(),
-                        destacado=True,
-                        nuevoproducto=False,
-                        estado=estado,  # Se asigna según la columna del archivo
-                        idmodelo=modelo_instance,
-                        stock=stock,
-                        activo=True,  # Siempre se establece en True
-                    )
-
-                    # Asociar categoría
-                    tblitemcategoria.objects.create(iditem=item, idcategoria=categoria_instance)
-
-                    # Procesar vínculos adicionales
-                    vinculos_data = {
-                        "PLIEGUES": row.get("PLIEGUES", None),
-                        "IC_IV": row.get("IC/IV", None),
-                        "APLICACION": row.get("APLICACIÓN", None),
-                        "SERVICIO": row.get("SERVICIO", None),
-                        "ARO": row.get("ARO", None),
-                        "ARO_PERMITIDO": row.get("ARO PERMITIDO", None),
-                        "PERFIL": row.get("PERFIL", None),
-                        "PRESENTACION": row.get("PRESENTACION", None),
-                        "RANGO_VELOCIDAD": row.get("RANGO VELOCIDAD", None),
-                        "RUNFLAT": row.get("RUNFLAT", None),
-                        "INDICE_CARGA": row.get("INDICE DE CARGA", None),
-                    }
-
-                    with transaction.atomic():
-                        for key, value in vinculos_data.items():
-                            try:
-                                if pd.notna(value):  # Si el valor no está vacío
-                                    clase_instance, _ = Tblitemclase.objects.get_or_create(nombre=key, defaults={"activo": True})
-                                    tblitemclasevinculo.objects.create(iditem=item, idclase=clase_instance, propiedad=value, activo=True)
-                            except Exception as e:
-                                print(f"Error al procesar el vínculo {key}: {e}")
-
-                    created_items.append(item)
+                    validated_data.append({
+                        "sku": sku,
+                        "titulo": titulo,
+                        "stock": stock,
+                        "precio_normal": precio_normal,
+                        "marca_id": marca_id,
+                        "modelo_id": modelo_id,
+                        "estado": estado,
+                        "ancho": None if pd.isna(ancho) else ancho,
+                        "categoria_id": categoria_id,
+                        "fecha_publicacion": row.get("FECHA PUBLICACION") or now(),
+                        "vinculos_data": {
+                            "PLIEGUES": row.get("PLIEGUES", None),
+                            "IC_IV": row.get("IC/IV", None),
+                            "APLICACION": row.get("APLICACIÓN", None),
+                            "SERVICIO": row.get("SERVICIO", None),
+                            "ARO": row.get("ARO", None),
+                            "ARO_PERMITIDO": row.get("ARO PERMITIDO", None),
+                            "PERFIL": row.get("PERFIL", None),
+                            "PRESENTACION": row.get("PRESENTACION", None),
+                            "RANGO_VELOCIDAD": row.get("RANGO VELOCIDAD", None),
+                            "RUNFLAT": row.get("RUNFLAT", None),
+                            "INDICE_CARGA": row.get("INDICE DE CARGA", None),
+                        }
+                    })
 
                 except Exception as e:
                     errors.append({
@@ -2122,15 +2068,47 @@ class TblitemViewSet(ModelViewSet):
                         "error": str(e),
                     })
 
+            # 🚨 **Si hay errores, detener aquí sin tocar la BD**
             if errors:
-                return Response(
-                    {
-                        "message": "Carga masiva completada con errores.",
-                        "errors": errors,
-                        "items_creados": TblitemSerializer(created_items, many=True).data,
-                    },
-                    status=status.HTTP_207_MULTI_STATUS,
-                )
+                return Response({
+                    "message": "Carga masiva cancelada. Se encontraron errores.",
+                    "errors": errors,
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            created_items = []
+
+            # 🔄 **2. Guardar los datos en la BD dentro de una transacción segura**
+            with transaction.atomic():
+                for data in validated_data:
+                    item = Tblitem.objects.create(
+                        codigosku=data["sku"],
+                        titulo=data["titulo"],
+                        precionormal=data["precio_normal"],
+                        ancho=data["ancho"],
+                        fechapublicacion=data["fecha_publicacion"],
+                        destacado=True,
+                        nuevoproducto=False,
+                        estado=data["estado"],
+                        idmodelo=Tblmodelo.objects.get(id=data["modelo_id"]),
+                        stock=data["stock"],
+                        activo=True,
+                    )
+
+                    if data["categoria_id"]:
+                        tblitemcategoria.objects.create(
+                            iditem=item, idcategoria=Tblcategoria.objects.get(id=data["categoria_id"])
+                        )
+
+                    for key, value in data["vinculos_data"].items():
+                        if pd.notna(value):
+                            clase_instance, _ = Tblitemclase.objects.get_or_create(
+                                nombre=key, defaults={"activo": True}
+                            )
+                            tblitemclasevinculo.objects.create(
+                                iditem=item, idclase=clase_instance, propiedad=value, activo=True
+                            )
+
+                    created_items.append(item)
 
             return Response({
                 "message": "Carga masiva completada con éxito.",
@@ -2140,8 +2118,7 @@ class TblitemViewSet(ModelViewSet):
         except Exception as e:
             return Response({"error": f"Error inesperado: {str(e)}"},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-    
+
     @action(detail=False, methods=['get'], url_path='descargar-plantilla-edicion')
     def descargar_plantilla_edicion(self, request):
         """
