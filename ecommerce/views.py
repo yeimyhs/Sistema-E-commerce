@@ -1991,14 +1991,11 @@ class TblitemViewSet(ModelViewSet):
                 return Response({"error": "No se ha proporcionado ningún archivo."},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-             # Leer archivo con UTF-8
+            # ⚡ Leer archivo en UTF-8 y asegurarse de que no hay problemas de codificación
             df = pd.read_excel(file, header=1, dtype=str, engine="openpyxl")
 
-            # Convertir a UTF-8 y eliminar caracteres problemáticos
-            df = df.applymap(lambda x: x.encode("utf-8", "ignore").decode("utf-8") if isinstance(x, str) else x)
-
-            # Remover tildes y caracteres especiales
-            df = df.applymap(lambda x: unidecode.unidecode(x) if isinstance(x, str) else x)
+            # ⚡ Convertir todas las celdas a Unicode y eliminar espacios en blanco innecesarios
+            df = df.applymap(lambda x: str(x).strip() if isinstance(x, str) else x)
 
             required_columns = ["CODIGO(SKU)", "NOMBRE DEL PRODUCTO", "STOCK", "PRECIO", "MARCA", "MODELO", "ESTADO"]
             for column in required_columns:
