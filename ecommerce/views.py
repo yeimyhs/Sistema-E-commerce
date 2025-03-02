@@ -1382,6 +1382,13 @@ class ExcelStreamingResponse:
         
 import pandas as pd
 import unidecode
+import tempfile
+def convert_excel_to_utf8(file):
+        """Convierte un archivo Excel a un CSV UTF-8 temporal para evitar problemas de codificación."""
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv", mode="w", encoding="utf-8") as temp_csv:
+            df = pd.read_excel(file, header=1, dtype=str, engine="openpyxl")
+            df.to_csv(temp_csv.name, index=False, encoding="utf-8")  # Guarda en UTF-8 limpio
+            return temp_csv.name  # Devuelve la ruta del archivo convertido
 class TblitemViewSet(ModelViewSet):
     queryset = Tblitem.objects.filter(activo=True).prefetch_related(
         'clases_propiedades',
@@ -1974,8 +1981,8 @@ class TblitemViewSet(ModelViewSet):
         
         # Crear en masa los registros de relaciones
         Tblitemrelacionado.objects.bulk_create(items_relacionados)
-
-
+    
+   
     @action(detail=False, methods=['post'], url_path='bulk-upload')
     @transaction.atomic
     def bulk_upload(self, request):
@@ -1992,8 +1999,8 @@ class TblitemViewSet(ModelViewSet):
                                 status=status.HTTP_400_BAD_REQUEST)
 
             # ⚡ Leer archivo en UTF-8 y asegurarse de que no hay problemas de codificación
-            df = pd.read_excel(file, header=1, dtype=str, engine="openpyxl")
-
+            file_path = convert_excel_to_utf8(file)  # Convierte el archivo antes de procesarlo
+            df = pd.read_csv(file_path, dtype=str, encoding="utf-8") 
             # ⚡ Convertir todas las celdas a Unicode y eliminar espacios en blanco innecesarios
             df = df.applymap(lambda x: str(x).strip() if isinstance(x, str) else x)
 
