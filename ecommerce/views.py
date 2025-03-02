@@ -1991,7 +1991,9 @@ class TblitemViewSet(ModelViewSet):
                 return Response({"error": "No se ha proporcionado ningún archivo."},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-            df = pd.read_excel(file, header=1)
+            df = pd.read_excel(file, header=1, dtype=str, engine="openpyxl")
+            df = df.applymap(lambda x: x.encode("utf-8", "ignore").decode("utf-8") if isinstance(x, str) else x)
+
 
             required_columns = ["CODIGO(SKU)", "NOMBRE DEL PRODUCTO", "STOCK", "PRECIO", "MARCA", "MODELO", "ESTADO"]
             for column in required_columns:
