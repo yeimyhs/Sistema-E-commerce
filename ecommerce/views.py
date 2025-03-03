@@ -418,43 +418,120 @@ def process_payment(request):
 
         # Construir detalles del pedido en formato HTML
         detalles_html = "".join([
-            f"<tr><td>{detalle.idproduct.titulo}</td><td>{detalle.cantidad}</td><td>${detalle.idproduct.precionormal:.2f}</td></tr>"
+            f"<tr>"
+            f"<td>{detalle.idproduct.titulo}</td>"
+            f"<td>{detalle.cantidad}</td>"
+            f"<td>${detalle.idproduct.precionormal:.2f}</td>"
+            f"<td>${detalle.precioflete:.2f}</td>"
+            f"</tr>"
             for detalle in detalles_pedido
         ])
 
+        # Datos del pedido
+        id_pedido = pedido.idpedido
+        moneda = pedido.idmoneda.nombre if pedido.idmoneda else 'PEN'
+        subtotal = pedido.subtotal
+        # Calcular el costo de envío total sumando los precios de flete de cada detalle
+        costo_envio = sum(detalle.precioflete for detalle in detalles_pedido if detalle.precioflete)
+
+        descuento = pedido.totaldescuento
+        total_pedido = nueva_transaccion.monto_total
+        tipo_envio = dict(Tblpedido.TIPOS_ID_ENVIO).get(pedido.tipoenvio, 'No especificado')
+        estado_pedido = pedido.estado
+
+        # Datos de la transacción
+        metodo_pago = nueva_transaccion.metodo_pago
+        numero_tarjeta = nueva_transaccion.numero_tarjeta[-4:] if nueva_transaccion.numero_tarjeta else '****'
+
+        # Datos de la sede
+        sede_nombre = pedido.idsede.nombre if pedido.idsede else 'No especificado'
+        sede_direccion = pedido.idsede.direccion if pedido.idsede else 'No disponible'
+
+        # Construcción de los detalles del pedido en HTML
+        detalles_html = "".join([
+            f"<tr>"
+            f"<td>{detalle.idproduct.titulo}</td>"
+            f"<td>{detalle.cantidad}</td>"
+            f"<td>${detalle.idproduct.precionormal:.2f}</td>"
+            f"<td>${detalle.precioflete:.2f}</td>"
+            f"</tr>"
+            for detalle in detalles_pedido
+        ])
+
+# Cr
+
         # Crear cuerpo del correo en HTML
         html_mensaje_cliente = format_html(f"""
-<html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmación de Pedido - Grupo IAP S.A.C</title>
+</head>
 <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; display: flex; justify-content: center;">
     <div style="max-width: 600px; width: 100%; background: white; border-radius: 8px; overflow: hidden; 
                 box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1); border-top: 6px solid rgb(254, 206, 0);">
 
         <!-- Encabezado -->
-        <div style="padding: 20px; text-align: center; border-bottom: 2px solid #ddd;">
-            <h2 style="color: #2c3e50; margin: 0;">🎉 ¡Gracias por tu compra, {user_info}!</h2>
-            <p style="color: #7a7a7a; margin-top: 5px;">Tu pedido ha sido recibido y pronto será procesado.</p>
+        <div style="padding: 25px; text-align: center; border-bottom: 2px solid #ddd;">
+            <h2 style="color: #2c3e50; font-size: 24px; margin: 0;">🎉 ¡Gracias por tu compra en Grupo IAP S.A.C!</h2>
+            <p style="color: #7a7a7a; font-size: 16px; margin-top: 5px;">Tu pedido ha sido recibido y está siendo procesado.</p>
         </div>
 
-        <!-- Detalles del Pedido -->
+        <!-- Información del Pedido -->
         <div style="padding: 20px;">
-            <h3 style="color: #2c3e50; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Resumen del Pedido</h3>
+            <h3 style="color: #2c3e50; font-size: 20px; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Detalles del Pedido</h3>
+            <p style="font-size: 16px;"><strong>Número de Orden:</strong> {id_pedido}</p>
+            <p style="font-size: 16px;"><strong>Moneda:</strong> {moneda}</p>
+            <p style="font-size: 16px;"><strong>Método de Pago:</strong> {metodo_pago} terminada en **{numero_tarjeta}</p>
+        </div>
+
+        <!-- Resumen del Pedido -->
+        <div style="padding: 20px;">
+            <h3 style="color: #2c3e50; font-size: 20px; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Resumen del Pedido</h3>
             <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
                 <tr style="background-color: rgb(254, 206, 0); color: black;">
-                    <th style="text-align: left; padding: 10px; border-bottom: 2px solid #ddd;">Producto</th>
-                    <th style="text-align: left; padding: 10px; border-bottom: 2px solid #ddd;">Cantidad</th>
-                    <th style="text-align: left; padding: 10px; border-bottom: 2px solid #ddd;">Precio</th>
+                    <th style="border-bottom: 2px solid #ddd; padding: 8px;">Producto</th>
+                    <th style="border-bottom: 2px solid #ddd; padding: 8px;">Cantidad</th>
+                    <th style="border-bottom: 2px solid #ddd; padding: 8px;">Precio Unitario</th>
+                    <th style="border-bottom: 2px solid #ddd; padding: 8px;">Costo de Envío</th>
                 </tr>
-                {detalles_html} <!-- Filas dinámicas con los productos -->
+                </thead>
+                <tbody>
+                    {detalles_html}
+                </tbody>
             </table>
 
-            <p style="margin-top: 15px; font-size: 18px; text-align: right; border-top: 2px solid #ddd; padding-top: 10px;">
-                <strong>Total pagado:</strong> <span style="color: black;">${total_pedido:.2f}</span>
+            <!-- Totales -->
+            <!-- Totales -->
+            <p style="margin-top: 15px; font-size: 18px; text-align: right;">
+                <strong>Subtotal:</strong> {subtotal:,.2f} {moneda}<br>
+                <strong>Costo de Envío:</strong> {costo_envio:,.2f} {moneda}<br>
+                <strong>Descuento:</strong> -{descuento:,.2f} {moneda}<br>
+                <strong style="font-size: 20px; color: black;">Total Pagado:</strong> <span style="color: black; font-size: 20px;">{total_pedido:,.2f} {moneda}</span>
             </p>
 
-            <p style="color: #555; text-align: center; margin-top: 15px;">
-                Si tienes alguna duda, no dudes en contactarnos.<br/>
-                📧 <a href="mailto:soporte@tuempresa.com" style="color: #2c3e50; text-decoration: none;">soporte@tuempresa.com</a>
+        </div>
+
+        <!-- Información de Envío -->
+        <div style="padding: 20px;">
+            <h3 style="color: #2c3e50; font-size: 20px; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Información de Envío</h3>
+            <p style="font-size: 16px;"><strong>Dirección de Envío:</strong> {pedido.direcciondestino or 'No especificado'}</p>
+            <p style="font-size: 16px;"><strong>Sede:</strong> {sede_nombre}</p>
+            <p style="font-size: 16px;"><strong>Dirección de Sede:</strong> {sede_direccion}</p>
+            <p style="font-size: 16px;"><strong>Tipo de Envío:</strong> {tipo_envio}</p>
+            <p style="font-size: 16px;"><strong>Estado del Pedido:</strong> {estado_pedido}</p>
+        </div>
+
+        <!-- Contacto -->
+        <div style="padding: 25px; text-align: center;">
+            <p style="color: #555; font-size: 16px;">
+                Si tienes alguna consulta, contáctanos en:<br>
+                📧 <a href="mailto:soporte@grupoiap.com" style="color: #2c3e50; text-decoration: none; font-weight: bold;">soporte@grupoiap.com</a><br>
+                📞 <strong>{settings.CONTACT_PHONE}</strong>
             </p>
+            <p style="font-size: 18px; font-weight: bold;">Gracias por confiar en Grupo IAP S.A.C</p>
         </div>
     </div>
 </body>
@@ -474,7 +551,14 @@ def process_payment(request):
 
         # Enviar correo al administrador con información del pedido
         html_mensaje_admin = format_html(f"""
-<html>
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmación de Pedido - Grupo IAP S.A.C</title>
+</head>
 <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; display: flex; justify-content: center;">
     <div style="max-width: 600px; width: 100%; background: white; border-radius: 8px; overflow: hidden; 
                 box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1); border-top: 6px solid rgb(254, 206, 0);">
@@ -495,26 +579,57 @@ def process_payment(request):
                 <p style="margin: 5px 0; color: #333;"><strong>Transacción:</strong> {nueva_transaccion.transaccion_id}</p>
             </div>
 
-            <h3 style="color: #2c3e50; margin-top: 20px; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Detalles del Pedido</h3>
-            <table style="width: 100%; border-collapse: collapse; margin-top: 15px; background: white;">
+
+        <!-- Resumen del Pedido -->
+        <div style="padding: 20px;">
+            <h3 style="color: #2c3e50; font-size: 20px; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Resumen del Pedido</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
                 <tr style="background-color: rgb(254, 206, 0); color: black;">
-                    <th style="text-align: left; padding: 10px; border-bottom: 2px solid #ddd;">Producto</th>
-                    <th style="text-align: left; padding: 10px; border-bottom: 2px solid #ddd;">Cantidad</th>
-                    <th style="text-align: left; padding: 10px; border-bottom: 2px solid #ddd;">Precio</th>
+                    <th style="border-bottom: 2px solid #ddd; padding: 8px;">Producto</th>
+                    <th style="border-bottom: 2px solid #ddd; padding: 8px;">Cantidad</th>
+                    <th style="border-bottom: 2px solid #ddd; padding: 8px;">Precio Unitario</th>
+                    <th style="border-bottom: 2px solid #ddd; padding: 8px;">Costo de Envío</th>
                 </tr>
-                {detalles_html} <!-- Filas dinámicas con los productos -->
+                </thead>
+                <tbody>
+                    {detalles_html}
+                </tbody>
             </table>
 
-            <p style="margin-top: 15px; font-size: 18px; text-align: right; border-top: 2px solid #ddd; padding-top: 10px;">
-                <strong>Total pagado:</strong> <span style="color: black;">${total_pedido:.2f}</span>
+            <!-- Totales -->
+            <!-- Totales -->
+            <p style="margin-top: 15px; font-size: 18px; text-align: right;">
+                <strong>Subtotal:</strong> {subtotal:,.2f} {moneda}<br>
+                <strong>Costo de Envío:</strong> {costo_envio:,.2f} {moneda}<br>
+                <strong>Descuento:</strong> -{descuento:,.2f} {moneda}<br>
+                <strong style="font-size: 20px; color: black;">Total Pagado:</strong> <span style="color: black; font-size: 20px;">{total_pedido:,.2f} {moneda}</span>
             </p>
+
+        </div>
+
+        <!-- Información de Envío -->
+        <div style="padding: 20px;">
+            <h3 style="color: #2c3e50; font-size: 20px; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Información de Envío</h3>
+            <p style="font-size: 16px;"><strong>Dirección de Envío:</strong> {pedido.direcciondestino or 'No especificado'}</p>
+            <p style="font-size: 16px;"><strong>Sede:</strong> {sede_nombre}</p>
+            <p style="font-size: 16px;"><strong>Dirección de Sede:</strong> {sede_direccion}</p>
+            <p style="font-size: 16px;"><strong>Tipo de Envío:</strong> {tipo_envio}</p>
+            <p style="font-size: 16px;"><strong>Estado del Pedido:</strong> {estado_pedido}</p>
+        </div>
+
+        <!-- Contacto -->
+        <div style="padding: 25px; text-align: center;">
+            <p style="color: #555; font-size: 16px;">
+                Si tienes alguna consulta, contáctanos en:<br>
+                📧 <a href="mailto:soporte@grupoiap.com" style="color: #2c3e50; text-decoration: none; font-weight: bold;">soporte@grupoiap.com</a><br>
+                📞 <strong>{settings.CONTACT_PHONE}</strong>
+            </p>
+            <p style="font-size: 18px; font-weight: bold;">Gracias por confiar en Grupo IAP S.A.C</p>
         </div>
     </div>
 </body>
 </html>
 """)
-
-
 
 
 
