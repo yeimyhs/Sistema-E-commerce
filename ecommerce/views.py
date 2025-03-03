@@ -1381,7 +1381,7 @@ class ExcelStreamingResponse:
         
         
 import pandas as pd
-
+from collections import Counter
 class TblitemViewSet(ModelViewSet):
     queryset = Tblitem.objects.filter(activo=True).prefetch_related(
         'clases_propiedades',
@@ -1976,7 +1976,6 @@ class TblitemViewSet(ModelViewSet):
         Tblitemrelacionado.objects.bulk_create(items_relacionados)
 
 
-
     @action(detail=False, methods=['post'], url_path='bulk-upload')
     def bulk_upload(self, request):
         try:
@@ -1990,20 +1989,40 @@ class TblitemViewSet(ModelViewSet):
             required_columns = ["CODIGO(SKU)", "NOMBRE DEL PRODUCTO", "STOCK", "PRECIO", "MARCA", "MODELO", "ESTADO"]
             for column in required_columns:
                 if column not in df.columns:
-                    return Response(
-                        {"error": f"Falta la columna requerida: {column}"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                    return Response({"error": f"Falta la columna requerida: {column}"}, status=status.HTTP_400_BAD_REQUEST)
 
-            skus_existentes = set(Tblitem.objects.values_list("codigosku", flat=True))
+            # 🔹 Tipos de datos esperados
+            expected_types = {
+                "CODIGO(SKU)": str,
+                "NOMBRE DEL PRODUCTO": str,
+                "STOCK": float,  # Convertiremos a número
+                "PRECIO": float,  # Convertiremos a número
+                "MARCA": int,  # IDs deben ser enteros
+                "MODELO": int,  # IDs deben ser enteros
+                "ESTADO": int,  # Debe ser un número
+                "ANCHO": float,  # Opcional, pero si está debe ser número
+                "CATEGORIA": int,  # Opcional, pero si está debe ser número
+            }
+
+            # 🔹 Detectar SKUs duplicados en el archivo
+            skus_archivo = [str(row["CODIGO(SKU)"]).strip() for _, row in df.iterrows()]
+            skus_repetidos = [sku for sku, count in Counter(skus_archivo).items() if count > 1]
+
+            if skus_repetidos:
+                return Response({
+                    "message": "Carga masiva cancelada. Se encontraron SKUs duplicados en el archivo.",
+                    "skus_duplicados": skus_repetidos,
+                }, status=status.HTTP_400_BAD_REQUEST)
+
             errors = []
-            validated_data = []  # Guardará los datos válidos antes de guardar
+            validated_data = []
 
-            # 🔍 **1. Validar todas las filas antes de guardar en la BD**
+            # 🔹 Validación de cada fila
             for index, row in df.iterrows():
                 try:
-                    sku = row["CODIGO(SKU)"]
-                    titulo = row["NOMBRE DEL PRODUCTO"]
+                    # Extraer valores con limpieza de espacios
+                    sku = str(row["CODIGO(SKU)"]).strip()
+                    titulo = str(row["NOMBRE DEL PRODUCTO"]).strip()
                     stock = row["STOCK"]
                     precio_normal = row["PRECIO"]
                     marca_id = row["MARCA"]
@@ -2012,28 +2031,42 @@ class TblitemViewSet(ModelViewSet):
                     ancho = row.get("ANCHO", None)
                     categoria_id = row.get("CATEGORIA", None)
 
-                    if sku in skus_existentes:
+                    # 🚨 Validar Tipos de Datos
+                    for col, expected_type in expected_types.items():
+                        value = row.get(col)
+                        if pd.notna(value):  # Si la celda tiene valor
+                            try:
+                                if expected_type == int:
+                                    row[col] = int(value)
+                                elif expected_type == float:
+                                    row[col] = float(value)
+                                elif expected_type == str:
+                                    row[col] = str(value).strip()
+                            except ValueError:
+                                errors.append({
+                                    "fila": index + 2,
+                                    "sku": sku,
+                                    "columna": col,
+                                    "valor": value,
+                                    "error": f"El valor '{value}' debe ser {expected_type.__name__}.",
+                                })
+
+                    # 🚨 Verificar si el SKU ya existe en la BD
+                    if sku in Tblitem.objects.values_list("codigosku", flat=True):
                         errors.append({
                             "fila": index + 2,
                             "sku": sku,
                             "error": "El SKU ya existe en la base de datos.",
                         })
-                        continue  # No procesar este SKU, pero seguir con los demás
+                        continue  # No procesar este SKU
 
-                    if not sku or not titulo or not marca_id or not modelo_id or not estado:
-                        raise ValueError("Los campos SKU, Nombre, Estado, Marca y Modelo son obligatorios.")
-
-                    estado = int(estado)
-
-                    # Validar existencia de datos en la BD **antes de la transacción**
+                    # 🚨 Validar existencia en la BD
                     if not Marca.objects.filter(id=marca_id).exists():
-                        raise ValueError(f"La marca con ID {marca_id} no existe.")
-
+                        errors.append({"fila": index + 2, "error": f"La marca con ID {marca_id} no existe."})
                     if not Tblmodelo.objects.filter(id=modelo_id, idmarca=marca_id).exists():
-                        raise ValueError(f"El modelo con ID {modelo_id} no existe o no pertenece a la marca {marca_id}.")
-
+                        errors.append({"fila": index + 2, "error": f"El modelo con ID {modelo_id} no existe o no pertenece a la marca {marca_id}."})
                     if categoria_id and not Tblcategoria.objects.filter(id=categoria_id).exists():
-                        raise ValueError(f"La categoría con ID {categoria_id} no existe.")
+                        errors.append({"fila": index + 2, "error": f"La categoría con ID {categoria_id} no existe."})
 
                     validated_data.append({
                         "sku": sku,
@@ -2046,19 +2079,6 @@ class TblitemViewSet(ModelViewSet):
                         "ancho": None if pd.isna(ancho) else ancho,
                         "categoria_id": categoria_id,
                         "fecha_publicacion": row.get("FECHA PUBLICACION") or now(),
-                        "vinculos_data": {
-                            "PLIEGUES": row.get("PLIEGUES", None),
-                            "IC_IV": row.get("IC/IV", None),
-                            "APLICACION": row.get("APLICACIÓN", None),
-                            "SERVICIO": row.get("SERVICIO", None),
-                            "ARO": row.get("ARO", None),
-                            "ARO_PERMITIDO": row.get("ARO PERMITIDO", None),
-                            "PERFIL": row.get("PERFIL", None),
-                            "PRESENTACION": row.get("PRESENTACION", None),
-                            "RANGO_VELOCIDAD": row.get("RANGO VELOCIDAD", None),
-                            "RUNFLAT": row.get("RUNFLAT", None),
-                            "INDICE_CARGA": row.get("INDICE DE CARGA", None),
-                        }
                     })
 
                 except Exception as e:
@@ -2068,47 +2088,53 @@ class TblitemViewSet(ModelViewSet):
                         "error": str(e),
                     })
 
-            # 🚨 **Si hay errores, detener aquí sin tocar la BD**
+            # 🚨 Si hay errores, detener la carga sin tocar la BD
             if errors:
                 return Response({
-                    "message": "Carga masiva cancelada. Se encontraron errores.",
+                    "message": "Carga masiva cancelada. Se encontraron errores de validación.",
                     "errors": errors,
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             created_items = []
 
-            # 🔄 **2. Guardar los datos en la BD dentro de una transacción segura**
+            # 🔄 **Guardar los datos en la BD dentro de una transacción segura**
             with transaction.atomic():
                 for data in validated_data:
-                    item = Tblitem.objects.create(
-                        codigosku=data["sku"],
-                        titulo=data["titulo"],
-                        precionormal=data["precio_normal"],
-                        ancho=data["ancho"],
-                        fechapublicacion=data["fecha_publicacion"],
-                        destacado=True,
-                        nuevoproducto=False,
-                        estado=data["estado"],
-                        idmodelo=Tblmodelo.objects.get(id=data["modelo_id"]),
-                        stock=data["stock"],
-                        activo=True,
-                    )
-
-                    if data["categoria_id"]:
-                        tblitemcategoria.objects.create(
-                            iditem=item, idcategoria=Tblcategoria.objects.get(id=data["categoria_id"])
+                    try:
+                        item = Tblitem.objects.create(
+                            codigosku=data["sku"],
+                            titulo=data["titulo"],
+                            precionormal=data["precio_normal"],
+                            ancho=data["ancho"],
+                            fechapublicacion=data["fecha_publicacion"],
+                            destacado=True,
+                            nuevoproducto=False,
+                            estado=data["estado"],
+                            idmodelo=Tblmodelo.objects.get(id=data["modelo_id"]),
+                            stock=data["stock"],
+                            activo=True,
                         )
 
-                    for key, value in data["vinculos_data"].items():
-                        if pd.notna(value):
-                            clase_instance, _ = Tblitemclase.objects.get_or_create(
-                                nombre=key, defaults={"activo": True}
-                            )
-                            tblitemclasevinculo.objects.create(
-                                iditem=item, idclase=clase_instance, propiedad=value, activo=True
+                        if data["categoria_id"]:
+                            tblitemcategoria.objects.create(
+                                iditem=item, idcategoria=Tblcategoria.objects.get(id=data["categoria_id"])
                             )
 
-                    created_items.append(item)
+                        created_items.append(item)
+
+                    except Exception as e:
+                        errors.append({
+                            "sku": data["sku"],
+                            "error": f"Error al insertar en la BD: {str(e)}"
+                        })
+                        raise  # Revertir la transacción si ocurre un error
+
+            if errors:
+                return Response({
+                    "message": "Carga masiva completada con errores.",
+                    "errors": errors,
+                    "items_creados": TblitemSerializer(created_items, many=True).data,
+                }, status=status.HTTP_207_MULTI_STATUS)
 
             return Response({
                 "message": "Carga masiva completada con éxito.",
@@ -2118,6 +2144,7 @@ class TblitemViewSet(ModelViewSet):
         except Exception as e:
             return Response({"error": f"Error inesperado: {str(e)}"},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
     @action(detail=False, methods=['get'], url_path='descargar-plantilla-edicion')
     def descargar_plantilla_edicion(self, request):
