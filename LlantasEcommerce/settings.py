@@ -263,6 +263,7 @@ IZIPAY_USERNAME = os.getenv('IZIPAY_USERNAME')
 IZIPAY_PASSWORD = os.getenv('IZIPAY_PASSWORD')
 IZIPAY__KEY = os.getenv('IZIPAY__KEY')
 
+CONTACT_PHONE = os.getenv('CONTACT_PHONE')
 
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = os.getenv('EMAIL_HOST', default='localhost')
