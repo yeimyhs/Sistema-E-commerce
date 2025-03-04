@@ -143,7 +143,7 @@ LANGUAGE_CODE = "es"
 
 # Esto es clave para forzar UTF-8
 import sys
-sys.setdefaultencoding("utf-8")
+#sys.setdefaultencoding("utf-8")
 
 DATABASES = {
     'default': {
