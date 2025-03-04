@@ -141,9 +141,6 @@ FILE_CHARSET = "utf-8"
 
 LANGUAGE_CODE = "es"
 
-# Esto es clave para forzar UTF-8
-import sys
-#sys.setdefaultencoding("utf-8")
 
 DATABASES = {
     'default': {
@@ -158,8 +155,8 @@ DATABASES = {
         #'PORT': '5432',
         'PORT': '3306',
         'OPTIONS': {
-            'charset': 'utf8mb4',
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
+            'charset': 'latin1',
+            'init_command': "SET NAMES 'latin1' COLLATE 'latin1_general_ci'"
         }
     }
 }
