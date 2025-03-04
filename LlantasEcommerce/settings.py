@@ -133,6 +133,18 @@ DATABASES = {
     }
 }
 '''
+import sys
+import locale
+
+DEFAULT_CHARSET = "utf-8"
+FILE_CHARSET = "utf-8"
+
+LANGUAGE_CODE = "es"
+
+# Esto es clave para forzar UTF-8
+import sys
+sys.setdefaultencoding("utf-8")
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
