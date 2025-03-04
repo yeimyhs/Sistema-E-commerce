@@ -130,6 +130,7 @@ class Moneda(models.Model):
     activo = models.BooleanField(default =1)
     idmoneda = models.BigAutoField(primary_key=True)
     nombre = models.CharField(max_length=128)
+    simbolo = models.CharField(max_length=20)
     estado = models.IntegerField()
     fechacreacion = models.DateTimeField(auto_now_add=True)
     fechamodificacion = models.DateTimeField(auto_now=True)
@@ -303,6 +304,7 @@ class CustomUserManager(BaseUserManager):
         # Establece is_staff y is_superuser para el superusuario
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('estado', 1)
 
         # Llama a create_user para crear el superusuario
         return self.create_user(nombreusuario, email, password, **extra_fields)
