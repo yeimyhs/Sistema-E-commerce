@@ -131,18 +131,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'dbpoblada.sqlite3',
     }
-}
-'''
-import sys
-import locale
-
-DEFAULT_CHARSET = "utf-8"
-FILE_CHARSET = "utf-8"
-
-LANGUAGE_CODE = "es"
-
-
-DATABASES = {
+}DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         #'NAME': 'pruebamigracionllantas',
@@ -158,6 +147,24 @@ DATABASES = {
             'charset': 'latin1',
             'init_command': "SET NAMES 'latin1' COLLATE 'latin1_general_ci'"
         }
+    }
+}import sys
+import locale
+
+DEFAULT_CHARSET = "utf-8"
+FILE_CHARSET = "utf-8"
+
+LANGUAGE_CODE = "es"
+
+
+
+
+'''
+DATABASES = {
+    'default': {
+        # Sqlite
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'dbpobladaserv.sqlite3',
     }
 }
 
