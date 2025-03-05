@@ -2926,4 +2926,35 @@ class TransaccionViewSet(ModelViewSet):
     "numero_tarjeta",
     "monto_total"
 ]
+from rest_framework.permissions import AllowAny
+
+User = get_user_model()
+
+class AutoLoginView(APIView):
+    permission_classes = [AllowAny]  # Permitir acceso sin autenticación
+
+    def get(self, request):
+        try:
+            # Buscar al usuario con ID = 2
+            user = User.objects.get(id=2)
+
+            # Iniciar sesión con el usuario
+            login(request, user)
+
+            # Generar un nuevo token Knox para el usuario
+            token_instance = AuthToken.objects.create(user)[1]  # Knox devuelve (instance, token)
+
+            return Response({
+                "success": True,
+                "token": token_instance
+            })
+
+        except User.DoesNotExist:
+            return Response({
+                "success": False,
+                "error": {
+                    "code": "user_not_found",
+                    "message": "El usuario con ID 2 no existe."
+                }
+            }, status=404)
 
