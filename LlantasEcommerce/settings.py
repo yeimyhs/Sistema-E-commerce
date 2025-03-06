@@ -17,6 +17,22 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+import sys
+import locale
+
+
+
+# settings_izipay.py
+import os
+from dotenv import load_dotenv
+
+# Carga el archivo .env
+load_dotenv()
+
+
+locale.setlocale(locale.LC_ALL, 'en_US.utf8')
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
 
 
 # Quick-start development settings - unsuitable for production
@@ -26,7 +42,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-fy!^t*0#ay+^3m-07_$&qcblx9uapsj&^a^eog0a#sw51(gx44'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ["*","106.0.62.101","compratullanta.com",'190.237.97.231','servicesgrupoiap.ddns.net','ecommercellantas.onrender.com', '127.0.0.1:8000', '127.0.0.1']
 
@@ -69,13 +85,14 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ('knox.auth.TokenAuthentication',),
     #'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
     'DEFAULT_PAGINATION_CLASS': 'ecommerce.pagination.NoMaxLimitOffsetPagination',
-    'PAGE_SIZE': 10
+    'PAGE_SIZE': 10,
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
     
 }
 
-#'DEFAULT_PERMISSIO------------N_CLASSES': (
-    #    'rest_framework.permissions.IsAuthenticated',
-    #),
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -157,9 +174,6 @@ FILE_CHARSET = "utf-8"
 LANGUAGE_CODE = "es"
 
 
-
-
-'''
 DATABASES = {
     'default': {
         # Sqlite
@@ -169,6 +183,26 @@ DATABASES = {
 }
 
 
+'''
+
+
+DATABASES = {
+    'default': {
+        'ENGINE': os.getenv('BD_ENGINE'),
+        #'NAME': 'pruebamigracionllantas',
+        'NAME': os.getenv('BD_NAME'),
+        #'USER': 'postgres',
+        'USER': os.getenv('BD_USERNAME'),
+        'PASSWORD':  os.getenv('BD_PASSWORD'),
+        'HOST': 'localhost',
+        #'PORT': '5432',
+        'PORT': '3306',
+        'OPTIONS': {
+            'charset': 'latin1',
+            'init_command': "SET NAMES 'latin1' COLLATE 'latin1_general_ci'"
+        }
+    }
+}
 DATETIME_FORMAT = 'Y-m-d H:i:s' 
 
 # Password validation
@@ -225,7 +259,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
 
-STATIC_URL = '/static/'
+STATIC_URL = '/api/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Otras configuraciones de archivos estáticos
@@ -233,7 +267,7 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),  # para archivos estáticos adicionales
 ]
 
-MEDIA_URL = '/media/'  # URL pública para acceder a los archivos
+MEDIA_URL = '/api/media/'  # URL pública para acceder a los archivos
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')  # Ruta donde se guardan los archivos físicamente
 
 # Default primary key field type
@@ -266,13 +300,6 @@ LOGGING_variablequitarlodeminiscula = {
     },
 }
 
-
-# settings_izipay.py
-import os
-from dotenv import load_dotenv
-
-# Carga el archivo .env
-load_dotenv()
 
 # Ahora puedes acceder a las variables de entorno
 IZIPAY_USERNAME = os.getenv('IZIPAY_USERNAME')
