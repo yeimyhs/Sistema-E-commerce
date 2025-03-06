@@ -1136,6 +1136,8 @@ class UserPedidosView(ModelViewSet):
       
     
 class RegisterAPI(generics.GenericAPIView):
+    permission_classes = (permissions.AllowAny,)
+    
     serializer_class = RegisterSerializer
 
     def post(self, request, *args, **kwargs):
