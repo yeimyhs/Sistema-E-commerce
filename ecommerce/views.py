@@ -2942,13 +2942,15 @@ class AutoLoginView(APIView):
             login(request, user)
 
             # Generar un nuevo token Knox para el usuario
-            token_instance = AuthToken.objects.create(user)[1]  # Knox devuelve (instance, token)
+            token_instance, token_key  = AuthToken.objects.create(user)  # Knox devuelve (instance, token)
+            expiry = token_instance.expiry
 
             return Response({
                 "success": True,
-                "token": token_instance
-            })
+                "token": token_key  ,
+                "expiry": expiry.isoformat()
 
+                    })
         except User.DoesNotExist:
             return Response({
                 "success": False,
