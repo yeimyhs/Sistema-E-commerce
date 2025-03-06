@@ -56,6 +56,9 @@ from django.conf import settings
 
 from rest_framework.generics import ListAPIView
 
+
+from ecommerce.permissions import *
+
 rarfile.UNRAR_TOOL = r"C:\Program Files\WinRAR\UnRAR.exe"
 @csrf_exempt
 def upload_images(request):
@@ -664,6 +667,7 @@ from django.db.models import Q, Exists, OuterRef
 
 
 class ClasesYPropiedadesView(APIView):
+    permission_classes = [AllowAnyForReadOnly]
     def post(self, request):
         # JSON de entrada
         filtros = request.data
@@ -841,6 +845,7 @@ class FixedPageNumberPagination(PageNumberPagination):
 from rest_framework.response import Response
 
 class BusquedaDinamicaViewSet(viewsets.ViewSet):
+    permission_classes = [AllowAny]  # Permitir acceso sin autenticación
     serializer_class = TblitemSerializer
     pagination_class = FixedPageNumberPagination  # Clase de paginación personalizada
 
@@ -951,6 +956,8 @@ class BusquedaDinamicaViewSet(viewsets.ViewSet):
 
 
 class BusqussedaDinamicaViewSet(viewsets.ViewSet):
+    permission_classes = [AllowAny]  # Permitir acceso sin autenticación
+
     def create(self, request):
         # Leer el cuerpo de la solicitud
         data = request.data
@@ -1253,6 +1260,7 @@ class PasswordResetView(APIView):
         # Renderizar el formulario de restablecimiento de contraseña
         #return render(request, "password_reset_form.html", {"user_id": user_id, "token": token})
 class AdministracionViewSet(ModelViewSet):
+    permission_classes = [AllowAnyForReadOnly] 
     queryset = Administracion.objects.filter(activo=True).order_by('pk')
     serializer_class = AdministracionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
@@ -1262,6 +1270,7 @@ class AdministracionViewSet(ModelViewSet):
 
 
 class CuponViewSet(ModelViewSet):
+    permission_classes = [AllowRetrieveWithoutAuth] 
     queryset = Cupon.objects.filter(activo=True).order_by('pk')
     serializer_class = CuponSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
@@ -1285,6 +1294,7 @@ class MarcaViewSet(ModelViewSet):
 
 
 class TblreclamacionViewSet(ModelViewSet):
+    permission_classes = [AllowPostWithoutAuth]
     queryset = Tblreclamacion.objects.filter(activo=True).order_by('pk')
     serializer_class = TblreclaisionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
@@ -1294,6 +1304,7 @@ class TblreclamacionViewSet(ModelViewSet):
 
 
 class MarcaViewSet(ModelViewSet):
+    permission_classes = [AllowAnyForReadOnly] 
     queryset = Marca.objects.filter(activo=True).order_by('pk')
     serializer_class = MarcaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
@@ -1301,6 +1312,7 @@ class MarcaViewSet(ModelViewSet):
     filterset_fields = ['activo', 'id', 'nombre']
 
 class TblcategoriaViewSet(ModelViewSet):
+    permission_classes = [AllowAnyForReadOnly] 
     queryset = Tblcategoria.objects.filter(activo=True).order_by('pk')
     serializer_class = TblcategoriaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
@@ -1308,6 +1320,8 @@ class TblcategoriaViewSet(ModelViewSet):
     filterset_fields = ['activo', 'id', 'nombre']
 
 class FleteViewSet(ModelViewSet):
+    permission_classes = [AllowAnyForReadOnly] 
+    
     queryset = Flete.objects.filter(activo=True).order_by('pk')
     serializer_class = FleteSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
@@ -1382,6 +1396,7 @@ class FleteViewSet(ModelViewSet):
 
 
 class TblmodeloViewSet(ModelViewSet):
+    permission_classes = [AllowAnyForReadOnly] 
     queryset = Tblmodelo.objects.filter(activo=True).order_by('pk')
     serializer_class = TblmodeloSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
@@ -1392,6 +1407,8 @@ class TblmodeloViewSet(ModelViewSet):
 
 
 class MonedaViewSet(ModelViewSet):
+    permission_classes = [AllowAnyForReadOnly] 
+    
     queryset = Moneda.objects.filter(activo=True).order_by('pk')
     serializer_class = MonedaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
@@ -1401,6 +1418,8 @@ class MonedaViewSet(ModelViewSet):
 
 
 class PromocionViewSet(ModelViewSet):
+    permission_classes = [AllowAnyForReadOnly] 
+    
     queryset = Promocion.objects.filter(activo=True).order_by('pk')
     serializer_class = PromocionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
@@ -1500,6 +1519,8 @@ class ExcelStreamingResponse:
 import pandas as pd
 from collections import Counter
 class TblitemViewSet(ModelViewSet):
+    permission_classes = [AllowAnyForReadOnly] 
+    
     queryset = Tblitem.objects.filter(activo=True).prefetch_related(
         'clases_propiedades',
         'clases_propiedades__idclase'
@@ -2661,6 +2682,8 @@ class TblitemViewSet(ModelViewSet):
 
 
 class TblnoticiaViewSet(ModelViewSet):
+    permission_classes = [AllowAnyForReadOnly] 
+    
     queryset = Tblnoticia.objects.filter(activo=True).order_by('pk')
     serializer_class = TblnoticiaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
@@ -2669,6 +2692,8 @@ class TblnoticiaViewSet(ModelViewSet):
 
 
 class TblsedeViewSet(ModelViewSet):
+    permission_classes = [AllowAnyForReadOnly] 
+    
     queryset = Tblsede.objects.filter(activo=True).order_by('pk')
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
     serializer_class = TblsedeSerializer
@@ -2677,6 +2702,7 @@ class TblsedeViewSet(ModelViewSet):
 
 
 class TblpedidoViewSet(ModelViewSet):
+    
     @swagger_auto_schema(
         manual_parameters=[
             openapi.Parameter(
@@ -2765,6 +2791,8 @@ class TblpedidoViewSet(ModelViewSet):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class TblCarruselViewSet(ModelViewSet):
+    permission_classes = [AllowAnyForReadOnly] 
+    
     queryset = TblCarrusel.objects.filter(activo=True).order_by('pk')
     serializer_class = TblCarruselSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
@@ -2783,6 +2811,8 @@ class TblusuarioViewSet(ModelViewSet):
 
 
 class TipocambioViewSet(ModelViewSet):
+    permission_classes = [AllowAnyForReadOnly] 
+    
     queryset = Tipocambio.objects.filter(activo=True).order_by('pk')
     serializer_class = TipocambioSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
@@ -2819,6 +2849,8 @@ class TbldetallecarritoViewSet(ModelViewSet):
 
 
 class TblimagenitemViewSet(ModelViewSet):
+    permission_classes = [AllowAnyForReadOnly] 
+    
     queryset = Tblimagenitem.objects.filter(activo=True).order_by('pk')
     serializer_class = TblimagenitemSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
@@ -2892,6 +2924,8 @@ class TblitempropiedadViewSet(ModelViewSet):
 
 
 class TblitemrelacionadoViewSet(ModelViewSet):
+    permission_classes = [AllowAnyForReadOnly] 
+    
     queryset = Tblitemrelacionado.objects.filter(activo=True).order_by('pk')
     serializer_class = TblitemrelacionadoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
@@ -2900,6 +2934,8 @@ class TblitemrelacionadoViewSet(ModelViewSet):
 
 
 class tblitemcategoriaViewSet(ModelViewSet):
+    permission_classes = [AllowAnyForReadOnly] 
+    
     queryset = tblitemcategoria.objects.filter(activo=True).order_by('pk')
     serializer_class = tblitemcategoriaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
