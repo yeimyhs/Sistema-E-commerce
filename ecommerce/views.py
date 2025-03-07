@@ -1271,7 +1271,7 @@ class AdministracionViewSet(ModelViewSet):
 
 
 class CuponViewSet(ModelViewSet):
-    permission_classes = [AllowRetrieveWithoutAuth] 
+    permission_classes = [AllowAny] 
     queryset = Cupon.objects.filter(activo=True).order_by('pk')
     serializer_class = CuponSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend, DateTimeIntervalFilter]
