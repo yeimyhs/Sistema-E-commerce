@@ -2824,6 +2824,7 @@ class TipocambioViewSet(ModelViewSet):
 
 
 class ValoracionViewSet(ModelViewSet):
+    permission_classes = [AllowAny] 
     queryset = Valoracion.objects.filter(activo=True).order_by('pk')
     serializer_class = ValoracionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
