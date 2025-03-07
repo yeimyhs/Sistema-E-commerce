@@ -668,7 +668,7 @@ from django.db.models import Q, Exists, OuterRef
 
 
 class ClasesYPropiedadesView(APIView):
-    permission_classes = [AllowAnyForReadOnly]
+    permission_classes = [AllowAny]
     def post(self, request):
         # JSON de entrada
         filtros = request.data
