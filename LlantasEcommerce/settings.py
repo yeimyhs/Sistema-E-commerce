@@ -20,6 +20,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 import sys
 import locale
 
+import os
+os.environ["OPENBLAS_NUM_THREADS"] = "4"
 
 
 # settings_izipay.py
@@ -44,7 +46,7 @@ SECRET_KEY = 'django-insecure-fy!^t*0#ay+^3m-07_$&qcblx9uapsj&^a^eog0a#sw51(gx44
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ["*","106.0.62.101","compratullanta.com",'190.237.97.231','servicesgrupoiap.ddns.net','ecommercellantas.onrender.com', '127.0.0.1:8000', '127.0.0.1']
+ALLOWED_HOSTS = ["66.198.240.37","*","106.0.62.101","mbcqpdpu.a2hosted.com","compratullanta.com",'190.237.97.231','servicesgrupoiap.ddns.net','ecommercellantas.onrender.com', '127.0.0.1:8000', '127.0.0.1']
 
 
 # Application definition
@@ -131,65 +133,11 @@ WSGI_APPLICATION = 'LlantasEcommerce.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
-'''DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'prueballantas',
-        'USER': 'postgres',
-        'PASSWORD': 'yeimyhs',
-        'HOST': 'localhost',
-        'PORT': '5433',
-    }
-}'''
-'''
-DATABASES = {
-    'default': {
-        # Sqlite
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'dbpoblada.sqlite3',
-    }
-}DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        #'NAME': 'pruebamigracionllantas',
-        'NAME': 'compratu_pruebamigracionllantas',
-        #'USER': 'postgres',
-        'USER': 'compratu_slipnotxx',
-        #'PASSWORD': 'yeimyhs',
-        'PASSWORD': 'Slipnotxx1408',
-        'HOST': 'localhost',
-        #'PORT': '5432',
-        'PORT': '3306',
-        'OPTIONS': {
-            'charset': 'latin1',
-            'init_command': "SET NAMES 'latin1' COLLATE 'latin1_general_ci'"
-        }
-    }
-}import sys
-import locale
-
-DEFAULT_CHARSET = "utf-8"
-FILE_CHARSET = "utf-8"
-
-LANGUAGE_CODE = "es"
-
-
-DATABASES = {
-    'default': {
-        # Sqlite
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'dbpobladaserv.sqlite3',
-    }
-}
-
-
-'''
 
 
 DATABASES = {
     'default': {
         'ENGINE': os.getenv('BD_ENGINE'),
-        #'NAME': 'pruebamigracionllantas',
         'NAME': os.getenv('BD_NAME'),
         #'USER': 'postgres',
         'USER': os.getenv('BD_USERNAME'),
@@ -267,8 +215,9 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),  # para archivos estáticos adicionales
 ]
 
-MEDIA_URL = '/api/media/'  # URL pública para acceder a los archivos
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')  # Ruta donde se guardan los archivos físicamente
+MEDIA_URL = '/media/'  # URL pública para acceder a los archivos
+MEDIA_ROOT = '/home/mbcqpdpu/public_html/media'
+#os.path.join(BASE_DIR, 'media')  # Ruta donde se guardan los archivos físicamente
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
@@ -301,6 +250,8 @@ LOGGING_variablequitarlodeminiscula = {
 }
 
 
+import smtplib
+import ssl
 # Ahora puedes acceder a las variables de entorno
 IZIPAY_USERNAME = os.getenv('IZIPAY_USERNAME')
 IZIPAY_PASSWORD = os.getenv('IZIPAY_PASSWORD')
@@ -308,10 +259,17 @@ IZIPAY__KEY = os.getenv('IZIPAY__KEY')
 
 CONTACT_PHONE = os.getenv('CONTACT_PHONE')
 
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
-EMAIL_HOST = os.getenv('EMAIL_HOST', default='localhost')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT',  default=587))
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', default=True)
+#EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+#EMAIL_HOST = os.getenv('EMAIL_HOST', default='localhost')
+#EMAIL_PORT = int(os.getenv('EMAIL_PORT',  default=587))
+#EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', default=True)
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', default='webmaster@localhost')
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "mail.compratullanta.com" 
+
+EMAIL_PORT = 465
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True
+SMTP_SERVER = "smtp.gmail.com"

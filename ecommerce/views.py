@@ -167,8 +167,8 @@ def create_payment(request):
     
     else:
         return JsonResponse({"status": "error", "message": "Método no permitido."}, status=405)
-    
-    
+
+
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import requests
@@ -318,6 +318,10 @@ from django.db import transaction
 from django.core.mail import EmailMessage
 from django.conf import settings
 from django.utils.html import format_html
+import ssl
+import certifi
+
+context = ssl.create_default_context(cafile=certifi.where())
 
 
 @csrf_exempt
@@ -350,6 +354,7 @@ def process_payment(request):
         authorization_response = card_details.get("authorizationResponse", {})
         user_info = transaccion_data.get("transactionDetails", {}).get("userInfo", "DESCONOCIDO")
         idpedido = data.get("kr-answer", {}).get("orderDetails", {}).get("orderId")
+        
 
         # Crear nueva transacción
         nueva_transaccion, created = tblTransaccion.objects.update_or_create(
@@ -369,7 +374,6 @@ def process_payment(request):
                     pedido = Tblpedido.objects.get(idpedido=idpedido, activo=True)
                 except Tblpedido.DoesNotExist:
                     return HttpResponse(json.dumps({"error": "El pedido no existe o no está activo."}), status=404, content_type="application/json")
-
                 pedido.idtransaccion = nueva_transaccion
                 pedido.estado = 2
                 pedido.save()
@@ -412,21 +416,22 @@ def process_payment(request):
 
 
         #--------------------------------------------------------
-        
+        print("-----preparar correos")
         # Preparar los datos para el correo
         email_cliente = pedido.idcliente.email
         user_email  = email_cliente
         user_id  = pedido.idcliente.pk
         email_admin = settings.DEFAULT_FROM_EMAIL  # Correo del remitente configurado en settings
         total_pedido = nueva_transaccion.monto_total
+        print("----- asignaciones preparar correos")
 
         # Construir detalles del pedido en formato HTML
         detalles_html = "".join([
             f"<tr>"
             f"<td>{detalle.idproduct.titulo}</td>"
             f"<td>{detalle.cantidad}</td>"
-            f"<td>${detalle.idproduct.precionormal:.2f}</td>"
-            f"<td>${detalle.precioflete:.2f}</td>"
+            f"<td>${detalle.idproduct.precionormal if detalle.idproduct.precionormal is not None else 0:.2f}</td>"
+            f"<td>${detalle.precioflete if detalle.precioflete is not None else 0:.2f}</td>"
             f"</tr>"
             for detalle in detalles_pedido
         ])
@@ -435,6 +440,7 @@ def process_payment(request):
         id_pedido = pedido.idpedido
         moneda = pedido.idmoneda.nombre if pedido.idmoneda else 'PEN'
         subtotal = pedido.subtotal
+        print("----- datos de pedido preparar correos")
         # Calcular el costo de envío total sumando los precios de flete de cada detalle
         costo_envio = sum(detalle.precioflete for detalle in detalles_pedido if detalle.precioflete)
 
@@ -446,21 +452,25 @@ def process_payment(request):
         # Datos de la transacción
         metodo_pago = nueva_transaccion.metodo_pago
         numero_tarjeta = nueva_transaccion.numero_tarjeta[-4:] if nueva_transaccion.numero_tarjeta else '****'
-
+        print("----- trasaccion preparar correos")
         # Datos de la sede
         sede_nombre = pedido.idsede.nombre if pedido.idsede else 'No especificado'
         sede_direccion = pedido.idsede.direccion if pedido.idsede else 'No disponible'
+        
+        print("-----datos correo sede preparar correos")
 
         # Construcción de los detalles del pedido en HTML
         detalles_html = "".join([
             f"<tr>"
             f"<td>{detalle.idproduct.titulo}</td>"
             f"<td>{detalle.cantidad}</td>"
-            f"<td>${detalle.idproduct.precionormal:.2f}</td>"
-            f"<td>${detalle.precioflete:.2f}</td>"
+            f"<td>${detalle.idproduct.precionormal if detalle.idproduct.precionormal is not None else 0:.2f}</td>"
+            f"<td>${detalle.precioflete if detalle.precioflete is not None else 0:.2f}</td>"
             f"</tr>"
             for detalle in detalles_pedido
         ])
+        print("-----d detalles pedido")
+
 
 # Cr
 
@@ -541,7 +551,7 @@ def process_payment(request):
 </body>
 </html>
 """)
-
+        print("----- contenido correo ")
         # Enviar correo al cliente si su email está disponible
         if email_cliente:
             email = EmailMessage(
@@ -552,6 +562,8 @@ def process_payment(request):
             )
             email.content_subtype = "html"  # Importante para que el correo sea interpretado como HTML
             email.send()
+            
+        print("-----correo cliente enviado ")
 
         # Enviar correo al administrador con información del pedido
         html_mensaje_admin = format_html(f"""
@@ -709,29 +721,36 @@ class ClasesYPropiedadesView(APIView):
             })
 
 
-        # Filtrar marcas en base a los items
+
+        # Obtener marcas
         marcas_ids = items_filtrados.values_list('idmodelo__idmarca', flat=True).distinct()
         marcas = Marca.objects.filter(id__in=marcas_ids)
-        lista_marcas = [{"id": marca.id, "nombre": marca.nombre} for marca in marcas]
+        filtro_general.append({
+            "id": 300,
+            "idclase": 300,
+            "clase": "Marca",
+            "propiedades": [{"nombre": marca.nombre,"id": marca.id } for marca in marcas]
+        })
 
-        # Filtrar modelos en base a los items
+        # Obtener modelos
         modelos_ids = items_filtrados.values_list('idmodelo', flat=True).distinct()
         modelos = Tblmodelo.objects.filter(id__in=modelos_ids)
-        lista_modelos = [
-            {"idmodelo": modelo.id, "nombre": modelo.nombre, "idmarca": modelo.idmarca.id if modelo.idmarca else None}
-            for modelo in modelos
-        ]
+        filtro_general.append({
+            "id": 200,
+            "idclase": 200,
+            "clase": "Modelo",
+            "propiedades": [{"nombre": modelo.nombre, "id": modelo.id} for modelo in modelos]
+        })
 
-        # Filtrar valores de ancho en base a los items
+        # Obtener valores de ancho
         valores_ancho = items_filtrados.values_list('ancho', flat=True).distinct()
         valores_ancho = [ancho for ancho in valores_ancho if ancho is not None]
-
-        # ADAPTACIÓN AL FORMATO ANTIGUO: 
-        # En lugar de devolver marcas, modelos y anchos como estructuras separadas, 
-        # las agregamos dentro de filtro_general como en la versión errónea.
-        filtro_general.append({"marcas": lista_marcas})
-        filtro_general.append({"modelos": lista_modelos})
-        filtro_general.append({"anchos": valores_ancho}) 
+        filtro_general.append({
+            "id": 100,
+            "idclase": 100,
+            "clase": "ANCHO",
+            "propiedades": [{"nombre": str(ancho)} for ancho in valores_ancho]
+        })
         #-----------------------------------------------------------------
         #-----------------------------------------------------------------
         
@@ -2115,15 +2134,10 @@ class TblitemViewSet(ModelViewSet):
         Tblitemrelacionado.objects.bulk_create(items_relacionados)
 
 
+   
     @action(detail=False, methods=['post'], url_path='bulk-upload')
     @transaction.atomic
     def bulk_upload(self, request):
-        """
-        Carga masiva de productos desde un archivo Excel.
-        - Solo permite SKUs nuevos. Si un SKU ya existe, se muestra un error.
-        - `activo` siempre se establece en True.
-        - `estado` se establece según la columna en el archivo.
-        """
         try:
             file = request.FILES.get('file')
             if not file:
@@ -2131,8 +2145,6 @@ class TblitemViewSet(ModelViewSet):
                                 status=status.HTTP_400_BAD_REQUEST)
 
             df = pd.read_excel(file, header=1, dtype=str, engine="openpyxl")
-            df = df.applymap(lambda x: x.encode("utf-8", "ignore").decode("utf-8") if isinstance(x, str) else x)
-
 
             required_columns = ["CODIGO(SKU)", "NOMBRE DEL PRODUCTO", "STOCK", "PRECIO", "MARCA", "MODELO", "ESTADO"]
             for column in required_columns:
@@ -2146,111 +2158,105 @@ class TblitemViewSet(ModelViewSet):
             errors = []
             created_items = []
 
-            for index, row in df.iterrows():
-                try:
-                    sku = row["CODIGO(SKU)"]
-                    titulo = row["NOMBRE DEL PRODUCTO"]
-                    stock = row["STOCK"]
-                    precio_normal = row["PRECIO"]
-                    marca_id = row["MARCA"]
-                    modelo_id = row["MODELO"]
-                    estado = row["ESTADO"]
-                    ancho = row.get("ANCHO", None)
-                    categoria_id = row.get("CATEGORIA", None)
+            with transaction.atomic():  # 🔥 Esto asegura que cualquier error revierte todo
+                for index, row in df.iterrows():
+                    try:
+                        sku = row["CODIGO(SKU)"]
+                        titulo = row["NOMBRE DEL PRODUCTO"]
+                        stock = row["STOCK"]
+                        precio_normal = row["PRECIO"]
+                        marca_id = row["MARCA"]
+                        modelo_id = row["MODELO"]
+                        estado = row["ESTADO"]
+                        ancho = row.get("ANCHO", None)
+                        categoria_id = row.get("CATEGORIA", None)
 
-                    # Verificar si el SKU ya existe
-                    if sku in skus_existentes:
+                        if sku in skus_existentes:
+                            errors.append({
+                                "fila": index + 2,
+                                "sku": sku,
+                                "error": "El SKU ya existe en la base de datos. Debe eliminarse antes de agregarlo nuevamente."
+                            })
+                            continue  # Pasar al siguiente registro sin procesar este
+
+                        if not sku or not titulo or not marca_id or not modelo_id or not estado:
+                            raise ValueError("Los campos SKU, Nombre, Estado, Marca y Modelo son obligatorios.")
+
+                        try:
+                            estado = int(estado)
+                        except ValueError:
+                            raise ValueError(f"El valor de 'ESTADO' para el SKU {sku} no es un número válido.")
+
+                        try:
+                            marca_instance = Marca.objects.get(id=marca_id)
+                        except Marca.DoesNotExist:
+                            raise ValueError(f"La marca con ID {marca_id} no existe.")
+
+                        try:
+                            modelo_instance = Tblmodelo.objects.get(id=modelo_id, idmarca=marca_id)
+                        except Tblmodelo.DoesNotExist:
+                            raise ValueError(f"El modelo con ID {modelo_id} no existe o no pertenece a la marca {marca_id}.")
+
+                        try:
+                            categoria_instance = Tblcategoria.objects.get(id=categoria_id)
+                        except Tblcategoria.DoesNotExist:
+                            raise ValueError(f"La categoría con ID {categoria_id} no existe.")
+
+                        if pd.isna(ancho):
+                            ancho = None
+                        elif ancho == 0:
+                            ancho = 0
+
+                        item = Tblitem.objects.create(
+                            codigosku=sku,
+                            titulo=titulo,
+                            precionormal=precio_normal,
+                            ancho=ancho,
+                            fechapublicacion=row.get("FECHA PUBLICACION") or now(),
+                            destacado=True,
+                            nuevoproducto=False,
+                            estado=estado,
+                            idmodelo=modelo_instance,
+                            stock=stock,
+                            activo=True,
+                        )
+
+                        tblitemcategoria.objects.create(iditem=item, idcategoria=categoria_instance)
+
+                        clases_existentes = {clase.nombre.upper(): clase.idclase for clase in Tblitemclase.objects.all()}
+
+                        vinculos_data = {
+                            "PLIEGUES": row.get("PLIEGUES", None),
+                            "IC_IV": row.get("IC/IV", None),
+                            "APLICACION": row.get("APLICACIÓN", None),
+                            "SERVICIO": row.get("SERVICIO", None),
+                            "ARO": row.get("ARO", None),
+                            "ARO_PERMITIDO": row.get("ARO PERMITIDO", None),
+                            "PERFIL": row.get("PERFIL", None),
+                            "PRESENTACION": row.get("PRESENTACION", None),
+                            "RANGO_VELOCIDAD": row.get("RANGO VELOCIDAD", None),
+                            "RUNFLAT": row.get("RUNFLAT", None),
+                            "INDICE_CARGA": row.get("INDICE DE CARGA", None),
+                        }
+
+                        for key, value in vinculos_data.items():
+                            if pd.notna(value):  
+                                key_upper = key.upper()  
+                                if key_upper in clases_existentes:
+                                    clase_id = clases_existentes[key_upper]
+                                    tblitemclasevinculo.objects.create(iditem=item, idclase_id=clase_id, propiedad=value, activo=True)
+                                else:
+                                    raise ValueError(f"No se encontró la clase '{key}' en la base de datos.")
+
+                        created_items.append(item)
+
+                    except Exception as e:
                         errors.append({
                             "fila": index + 2,
-                            "sku": sku,
-                            "error": "El SKU ya existe en la base de datos. Debe eliminarse antes de agregarlo nuevamente."
+                            "sku": row.get("CODIGO(SKU)", "Desconocido"),
+                            "error": str(e),
                         })
-                        continue  # Pasar al siguiente registro sin procesar este
-
-                    # Validaciones mínimas
-                    if not sku or not titulo or not marca_id or not modelo_id or not estado:
-                        raise ValueError("Los campos SKU, Nombre, Estado, Marca y Modelo son obligatorios.")
-
-                    # Convertir estado a número
-                    try:
-                        estado = int(estado)
-                    except ValueError:
-                        raise ValueError(f"El valor de 'ESTADO' para el SKU {sku} no es un número válido.")
-
-                    # Validar existencia de marca
-                    try:
-                        marca_instance = Marca.objects.get(id=marca_id)
-                    except Marca.DoesNotExist:
-                        raise ValueError(f"La marca con ID {marca_id} no existe.")
-
-                    # Validar modelo pertenece a la marca
-                    try:
-                        modelo_instance = Tblmodelo.objects.get(id=modelo_id, idmarca=marca_id)
-                    except Tblmodelo.DoesNotExist:
-                        raise ValueError(f"El modelo con ID {modelo_id} no existe o no pertenece a la marca {marca_id}.")
-
-                    # Validar categoría si existe
-                    try:
-                        categoria_instance = Tblcategoria.objects.get(id=categoria_id)
-                    except Tblcategoria.DoesNotExist:
-                        raise ValueError(f"La categoría con ID {categoria_id} no existe.")
-
-                    # Convertir ancho
-                    if pd.isna(ancho):
-                        ancho = None
-                    elif ancho == 0:
-                        ancho = 0  # Mantenerlo en 0 si viene así
-
-                    # Crear el producto con activo=True
-                    item = Tblitem.objects.create(
-                        codigosku=sku,
-                        titulo=titulo,
-                        precionormal=precio_normal,
-                        ancho=ancho,
-                        fechapublicacion=row.get("FECHA PUBLICACION") or now(),
-                        destacado=True,
-                        nuevoproducto=False,
-                        estado=estado,  # Se asigna según la columna del archivo
-                        idmodelo=modelo_instance,
-                        stock=stock,
-                        activo=True,  # Siempre se establece en True
-                    )
-
-                    # Asociar categoría
-                    tblitemcategoria.objects.create(iditem=item, idcategoria=categoria_instance)
-
-                    # Procesar vínculos adicionales
-                    vinculos_data = {
-                        "PLIEGUES": row.get("PLIEGUES", None),
-                        "IC_IV": row.get("IC/IV", None),
-                        "APLICACION": row.get("APLICACIÓN", None),
-                        "SERVICIO": row.get("SERVICIO", None),
-                        "ARO": row.get("ARO", None),
-                        "ARO_PERMITIDO": row.get("ARO PERMITIDO", None),
-                        "PERFIL": row.get("PERFIL", None),
-                        "PRESENTACION": row.get("PRESENTACION", None),
-                        "RANGO_VELOCIDAD": row.get("RANGO VELOCIDAD", None),
-                        "RUNFLAT": row.get("RUNFLAT", None),
-                        "INDICE_CARGA": row.get("INDICE DE CARGA", None),
-                    }
-
-                    with transaction.atomic():
-                        for key, value in vinculos_data.items():
-                            try:
-                                if pd.notna(value):  # Si el valor no está vacío
-                                    clase_instance, _ = Tblitemclase.objects.get_or_create(nombre=key, defaults={"activo": True})
-                                    tblitemclasevinculo.objects.create(iditem=item, idclase=clase_instance, propiedad=value, activo=True)
-                            except Exception as e:
-                                print(f"Error al procesar el vínculo {key}: {e}")
-
-                    created_items.append(item)
-
-                except Exception as e:
-                    errors.append({
-                        "fila": index + 2,
-                        "sku": row.get("CODIGO(SKU)", "Desconocido"),
-                        "error": str(e),
-                    })
+                        raise  # 🔥 Lanzamos la excepción para que se revierta la transacción
 
             if errors:
                 return Response(
@@ -2270,7 +2276,10 @@ class TblitemViewSet(ModelViewSet):
         except Exception as e:
             return Response({"error": f"Error inesperado: {str(e)}"},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
+
+   
+   
+   
     @action(detail=False, methods=['get'], url_path='descargar-plantilla-edicion')
     def descargar_plantilla_edicion(self, request):
         """
